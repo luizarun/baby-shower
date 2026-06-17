@@ -181,12 +181,7 @@
     <div class="step"><div class="step-num">2</div><div><h4>Add a Realtime Database</h4><p>In the left menu → <b>Build → Realtime Database → Create Database</b>. Pick the location closest to you. Choose <b>"Start in test mode"</b> → Enable.</p></div></div>
     <div class="step"><div class="step-num">3</div><div><h4>Register a web app</h4><p>Click the gear ⚙️ → <b>Project settings</b> → scroll to "Your apps" → tap the <b>&lt;/&gt;</b> (web) icon → give it a nickname → Register app.</p></div></div>
     <div class="step"><div class="step-num">4</div><div><h4>Copy your config</h4><p>Firebase shows a <code>firebaseConfig = {…}</code> block. Copy everything inside the braces (apiKey, databaseURL, etc.).</p></div></div>
-    <div class="step"><div class="step-num">5</div><div><h4>Paste it into this file</h4><p>Open this HTML file in any text editor → find the line near the top of the script that says <code>FIREBASE_CONFIG = {};
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>}</code> → paste your settings inside the braces → Save.</p></div></div>
+    <div class="step"><div class="step-num">5</div><div><h4>Paste it into this file</h4><p>Open this HTML file in any text editor → find the line near the top of the script that says <code>FIREBASE_CONFIG = {}</code> → paste your settings inside the braces → Save.</p></div></div>
     <div class="step"><div class="step-num">6</div><div><h4>Share & enjoy live sync</h4><p>Send the saved file via WhatsApp / AirDrop. Everyone opens it in Safari and edits the same shared data — updates appear for everyone within a second! ☁️</p></div></div>
   </div>
   <div class="info-pill" style="margin-top:16px;background:var(--purple-soft);border-color:var(--purple);color:#5B21B6">🔒 <b>Privacy note:</b> Test mode lets anyone with the file read & edit the data (guest names, amounts). That's fine for sharing privately with trusted family. Only share the file with people you want editing.</div>
@@ -440,7 +435,10 @@ function stats(){
   const paidExp=DATA.expenses.filter(r=>r.paid).reduce((s,r)=>s+(+r.amount||0),0);
   const catT={};CATS.forEach(c=>catT[c]=0);
   DATA.expenses.forEach(r=>{catT[r.cat]=(catT[r.cat]||0)+(+r.amount||0);});
-  return{relCount:rel.length,friCount:DATA.friends.length,total:rel.length+DATA.friends.length,
+  const relPeople=rel.reduce((s,r)=>s+(+r.people||0),0);
+  const friPeople=DATA.friends.reduce((s,r)=>s+(+r.people||0),0);
+  return{relCount:rel.length,friCount:DATA.friends.length,
+    relPeople,friPeople,total:relPeople+friPeople,
     relHeads,friHeads,rgNeeded:relHeads+friHeads,rgGiven:relGiven+friGiven,
     relMoney,friMoney,moneyIn:relMoney+friMoney,relGiven,friGiven,
     totalExp,paidExp,pend:totalExp-paidExp,catT,net:relMoney+friMoney-totalExp};
@@ -448,11 +446,11 @@ function stats(){
 let charts={};
 function updateDash(){
   const s=stats(),set=(id,v)=>document.getElementById(id).textContent=v;
-  set('k-rel',s.relCount);set('k-fri',s.friCount);set('k-total',s.total);set('k-rg',s.rgNeeded);
+  set('k-rel',s.relPeople);set('k-fri',s.friPeople);set('k-total',s.total);set('k-rg',s.rgNeeded);
   set('k-money',fmt(s.moneyIn));set('k-spent',fmt(s.totalExp));set('k-net',fmt(s.net));
   document.getElementById('k-net').style.color=s.net>=0?'#FFD700':'#FCA5A5';
-  set('rel-count',s.relCount);set('rel-heads',s.relHeads);set('rel-money',fmt(s.relMoney));set('rel-given',s.relGiven);
-  set('fri-count',s.friCount);set('fri-heads',s.friHeads);set('fri-money',fmt(s.friMoney));set('fri-given',s.friGiven);
+  set('rel-count',s.relPeople);set('rel-heads',s.relHeads);set('rel-money',fmt(s.relMoney));set('rel-given',s.relGiven);
+  set('fri-count',s.friPeople);set('fri-heads',s.friHeads);set('fri-money',fmt(s.friMoney));set('fri-given',s.friGiven);
   set('exp-total',fmt(s.totalExp));set('exp-paid',fmt(s.paidExp));set('exp-pend',fmt(s.pend));set('exp-cnt',DATA.expenses.length);
   drawCharts(s);
 }
@@ -460,7 +458,7 @@ function drawCharts(s){
   Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});
   if(typeof Chart==='undefined')return;
   const cw=()=>({responsive:true,maintainAspectRatio:false});
-  charts.g=new Chart(cGuests,{type:'doughnut',data:{labels:['👨‍👩‍👧 Relatives','👫 Friends'],datasets:[{data:[s.relCount,s.friCount],backgroundColor:['#7C3AED','#F43F87'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});
+  charts.g=new Chart(cGuests,{type:'doughnut',data:{labels:['👨‍👩‍👧 Relatives','👫 Friends'],datasets:[{data:[s.relPeople,s.friPeople],backgroundColor:['#7C3AED','#F43F87'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});
   charts.e=new Chart(cExp,{type:'pie',data:{labels:CATS.map(c=>CAT_ICON[c]+' '+c),datasets:[{data:CATS.map(c=>s.catT[c]||0),backgroundColor:['#EA580C','#F43F87','#7C3AED','#0D9488','#F59E0B'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}}});
   charts.rg=new Chart(cRG,{type:'doughnut',data:{labels:['✅ Given','⏳ Pending'],datasets:[{data:[s.rgGiven,Math.max(0,s.rgNeeded-s.rgGiven)],backgroundColor:['#16A34A','#FBCFE8'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} households`}}}}});
   charts.b=new Chart(cBal,{type:'bar',data:{labels:['💰 Received','💸 Spent'],datasets:[{data:[s.moneyIn,s.totalExp],backgroundColor:['#16A34A','#DC2626'],borderRadius:10,borderSkipped:false}]},options:{...cw(),indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'#f1f5f9'}},y:{grid:{display:false}}}}});
