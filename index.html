@@ -181,25 +181,7 @@
     <div class="step"><div class="step-num">2</div><div><h4>Add a Realtime Database</h4><p>In the left menu → <b>Build → Realtime Database → Create Database</b>. Pick the location closest to you. Choose <b>"Start in test mode"</b> → Enable.</p></div></div>
     <div class="step"><div class="step-num">3</div><div><h4>Register a web app</h4><p>Click the gear ⚙️ → <b>Project settings</b> → scroll to "Your apps" → tap the <b>&lt;/&gt;</b> (web) icon → give it a nickname → Register app.</p></div></div>
     <div class="step"><div class="step-num">4</div><div><h4>Copy your config</h4><p>Firebase shows a <code>firebaseConfig = {…}</code> block. Copy everything inside the braces (apiKey, databaseURL, etc.).</p></div></div>
-    <div class="step"><div class="step-num">5</div><div><h4>Paste it into this file</h4><p>Open this HTML file in any text editor → find the line near the top of the script that says <code>FIREBASE_CONFIG = {<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBiOtWHUOo5Y6iKJ1-HEveuH-cifmZQT_Y",
-    authDomain: "baby-shower-kiaan-yiaan.firebaseapp.com",
-    databaseURL: "https://baby-shower-kiaan-yiaan-default-rtdb.firebaseio.com",
-    projectId: "baby-shower-kiaan-yiaan",
-    storageBucket: "baby-shower-kiaan-yiaan.firebasestorage.app",
-    messagingSenderId: "11119363181",
-    appId: "1:11119363181:web:feddbdd4d83268addeeb64",
-    measurementId: "G-NKFBEZ0HHW"
-  };
+    <div class="step"><div class="step-num">5</div><div><h4>Paste it into this file</h4><p>Open this HTML file in any text editor → find the line near the top of the script that says <code>FIREBASE_CONFIG = {};
 
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
@@ -231,7 +213,15 @@
        appId: "1:1234567890:web:abc123"
      };
    ═══════════════════════════════════════════════════════════════ */
-const FIREBASE_CONFIG = {};
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBiOtWHUOo5Y6iKJ1-HEveuH-cifmZQT_Y",
+  authDomain: "baby-shower-kiaan-yiaan.firebaseapp.com",
+  databaseURL: "https://baby-shower-kiaan-yiaan-default-rtdb.firebaseio.com",
+  projectId: "baby-shower-kiaan-yiaan",
+  storageBucket: "baby-shower-kiaan-yiaan.firebasestorage.app",
+  messagingSenderId: "11119363181",
+  appId: "1:11119363181:web:feddbdd4d83268addeeb64"
+};
 const ROOM = "babyshower-main";   // everyone with the same file shares this room
 /* ═══════════════════════════════════════════════════════════════ */
 
