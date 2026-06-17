@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🍼 Baby Shower Tracker (Live Sync)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --rose:#F43F87;--rose-soft:#FDE8F2;--rose-mid:#FBCFE8;--purple:#7C3AED;--purple-soft:#EDE9FE;
+    --teal:#0D9488;--teal-soft:#CCFBF1;--gold:#F59E0B;--gold-soft:#FEF3C7;--red:#DC2626;--red-soft:#FEE2E2;
+    --green:#16A34A;--green-soft:#DCFCE7;--ink:#1E1B4B;--slate:#64748B;--bg:#FDF6FB;--card:#FFF;
+    --border:#F0E6F6;--radius:16px;--shadow:0 4px 24px rgba(124,58,237,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:40px;}
+  .hero{background:linear-gradient(135deg,#7C3AED 0%,#F43F87 60%,#FB923C 100%);padding:30px 20px 24px;text-align:center;}
+  .hero-emoji{font-size:46px;display:block;margin-bottom:6px;}
+  .hero h1{font-family:'Playfair Display',serif;font-size:25px;font-weight:900;color:#fff;}
+  .hero p{color:rgba(255,255,255,.85);font-size:13px;margin-top:5px;}
+  .save-pill{display:inline-block;margin-top:10px;background:rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:5px 15px;font-size:12px;font-weight:600;backdrop-filter:blur(4px);}
+  .tabs{display:flex;overflow-x:auto;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:100;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{flex:0 0 auto;padding:14px 16px;font-size:13px;font-weight:600;border:none;background:none;color:var(--slate);white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-2px;}
+  .tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
+  .page{display:none;padding:18px 14px;max-width:900px;margin:0 auto;}
+  .page.active{display:block;}
+  .setup-banner{background:linear-gradient(135deg,var(--gold-soft),#FFE9C2);border:2px solid var(--gold);border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#78350F;line-height:1.55;}
+  .setup-banner b{color:#92400E;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:16px;}
+  .kpi{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px 12px;text-align:center;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;opacity:.12;}
+  .kpi.purple::before{background:var(--purple);}.kpi.rose::before{background:var(--rose);}
+  .kpi.teal::before{background:var(--teal);}.kpi.gold::before{background:var(--gold);}
+  .kpi.red::before{background:var(--red);}.kpi.green::before{background:var(--green);}
+  .kpi-icon{font-size:24px;margin-bottom:4px;}.kpi-value{font-size:28px;font-weight:700;line-height:1;}
+  .kpi-label{font-size:10px;color:var(--slate);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+  .kpi.purple .kpi-value{color:var(--purple);}.kpi.rose .kpi-value{color:var(--rose);}
+  .kpi.teal .kpi-value{color:var(--teal);}.kpi.gold .kpi-value{color:var(--gold);}
+  .kpi.red .kpi-value{color:var(--red);}.kpi.green .kpi-value{color:var(--green);}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+  @media(max-width:600px){.chart-grid{grid-template-columns:1fr;}}
+  .chart-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:14px;box-shadow:var(--shadow);}
+  .chart-title{font-size:13px;font-weight:700;margin-bottom:10px;text-align:center;}
+  .chart-wrap{position:relative;height:210px;}
+  .net-banner{border-radius:var(--radius);padding:18px 22px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;background:linear-gradient(135deg,#1E1B4B,#4C1D95,#7C3AED);box-shadow:0 8px 32px rgba(124,58,237,.3);}
+  .net-banner .label{color:rgba(255,255,255,.8);font-size:13px;}
+  .net-banner .sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;}
+  .net-banner .amount{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:#FFD700;}
+  .section-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;margin:20px 0 12px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--rose-mid),transparent);border-radius:2px;}
+  .info-pill{background:var(--gold-soft);border:1px solid var(--gold);border-radius:12px;padding:11px 14px;font-size:12.5px;color:#78350F;margin-bottom:14px;line-height:1.55;}
+  .totals-strip{display:flex;flex-wrap:wrap;gap:8px;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;}
+  .totals-strip .t-item{flex:1;min-width:80px;text-align:center;}
+  .totals-strip .t-val{font-size:20px;font-weight:700;color:#fff;}
+  .totals-strip .t-lbl{font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
+  .edit-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 2px 10px rgba(124,58,237,.05);}
+  .edit-card.head-card{border-color:var(--purple);border-width:2px;background:linear-gradient(135deg,#fff,var(--purple-soft));}
+  .edit-card.maternal{border-left:5px solid var(--rose);}
+  .edit-card.paternal{border-left:5px solid var(--purple);}
+  .row-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .row-num{min-width:24px;height:24px;border-radius:50%;background:var(--purple-soft);color:var(--purple);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .inp{width:100%;border:1.5px solid var(--border);border-radius:9px;padding:9px 10px;font-size:14px;font-family:inherit;color:var(--ink);background:#fff;transition:border .15s;}
+  .inp:focus{outline:none;border-color:var(--purple);}
+  .inp-name{font-weight:600;flex:1;}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .field{display:flex;flex-direction:column;gap:3px;}
+  .field label{font-size:10px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.3px;padding-left:2px;}
+  select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237C3AED'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:28px;}
+  .del-btn{background:var(--red-soft);color:var(--red);border:none;width:32px;height:32px;border-radius:9px;font-size:15px;flex-shrink:0;cursor:pointer;}
+  .toggle{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:#fff;cursor:pointer;width:100%;justify-content:center;}
+  .toggle.on-head{background:var(--purple);color:#fff;border-color:var(--purple);}
+  .toggle.on-gift{background:var(--green);color:#fff;border-color:var(--green);}
+  .toggle.on-paid{background:var(--green);color:#fff;border-color:var(--green);}
+  .add-btn{width:100%;padding:13px;border:2px dashed var(--purple);background:var(--purple-soft);color:var(--purple);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:18px;}
+  .actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .act-btn{flex:1;min-width:90px;padding:11px;border:none;border-radius:11px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .act-export{background:var(--teal);color:#fff;}.act-import{background:var(--purple);color:#fff;}.act-reset{background:var(--red-soft);color:var(--red);}
+  .steps{display:flex;flex-direction:column;gap:12px;}
+  .step{display:flex;gap:14px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:14px;}
+  .step-num{min-width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--rose));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .step h4{font-size:13.5px;margin-bottom:3px;}.step p{font-size:12.5px;color:var(--slate);line-height:1.5;}
+  code{background:#1E1B4B;color:#FBCFE8;padding:1px 6px;border-radius:5px;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="hero-emoji">🍼</span>
+  <h1>Baby Shower Tracker</h1>
+  <p>Live sync · Everyone sees the same updates</p>
+  <span class="save-pill" id="savePill">⏳ Connecting…</span>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="relatives">👨‍👩‍👧 Relatives</button>
+  <button class="tab-btn" data-tab="friends">👫 Friends</button>
+  <button class="tab-btn" data-tab="expenses">💸 Expenses</button>
+  <button class="tab-btn" data-tab="howto">⚙️ Setup & Help</button>
+</div>
+
+<div class="page active" id="page-dashboard">
+  <div id="setupNotice"></div>
+  <div class="kpi-grid">
+    <div class="kpi purple"><div class="kpi-icon">👨‍👩‍👧</div><div class="kpi-value" id="k-rel">0</div><div class="kpi-label">Relatives</div></div>
+    <div class="kpi rose"><div class="kpi-icon">👫</div><div class="kpi-value" id="k-fri">0</div><div class="kpi-label">Friends</div></div>
+    <div class="kpi teal"><div class="kpi-icon">🎉</div><div class="kpi-value" id="k-total">0</div><div class="kpi-label">Total Guests</div></div>
+    <div class="kpi gold"><div class="kpi-icon">🎁</div><div class="kpi-value" id="k-rg">0</div><div class="kpi-label">Return Gifts Needed</div></div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi green"><div class="kpi-icon">💰</div><div class="kpi-value" id="k-money" style="font-size:20px">₹0</div><div class="kpi-label">Money Received</div></div>
+    <div class="kpi red"><div class="kpi-icon">💸</div><div class="kpi-value" id="k-spent" style="font-size:20px">₹0</div><div class="kpi-label">Total Spent</div></div>
+  </div>
+  <div class="net-banner">
+    <div><div class="label">✨ Net Balance</div><div class="sub">Money Received − Total Expenses</div></div>
+    <div class="amount" id="k-net">₹0</div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title">👥 Guest Breakdown</div><div class="chart-wrap"><canvas id="cGuests"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">💸 Expense Breakdown</div><div class="chart-wrap"><canvas id="cExp"></canvas></div></div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title">🎁 Return Gifts: Given vs Pending</div><div class="chart-wrap"><canvas id="cRG"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">💰 Money In vs Spent</div><div class="chart-wrap"><canvas id="cBal"></canvas></div></div>
+  </div>
+</div>
+
+<div class="page" id="page-relatives">
+  <div class="totals-strip" style="background:linear-gradient(135deg,var(--purple),var(--rose))">
+    <div class="t-item"><div class="t-val" id="rel-count">0</div><div class="t-lbl">People</div></div>
+    <div class="t-item"><div class="t-val" id="rel-heads">0</div><div class="t-lbl">Households 🎁</div></div>
+    <div class="t-item"><div class="t-val" id="rel-money">₹0</div><div class="t-lbl">Money</div></div>
+    <div class="t-item"><div class="t-val" id="rel-given">0</div><div class="t-lbl">Gifts Given</div></div>
+  </div>
+  <div class="info-pill">💡 Add each person as a row. Mark the <strong>household head</strong> — only heads get a return gift (one per household). "People" = how many are coming from that household.</div>
+  <div class="section-title">🌸 Maternal</div>
+  <div id="list-maternal"></div>
+  <button class="add-btn" data-add="maternal">＋ Add Maternal Relative</button>
+  <div class="section-title">💜 Paternal</div>
+  <div id="list-paternal"></div>
+  <button class="add-btn" data-add="paternal">＋ Add Paternal Relative</button>
+</div>
+
+<div class="page" id="page-friends">
+  <div class="totals-strip" style="background:linear-gradient(135deg,var(--teal),#0891b2)">
+    <div class="t-item"><div class="t-val" id="fri-count">0</div><div class="t-lbl">People</div></div>
+    <div class="t-item"><div class="t-val" id="fri-heads">0</div><div class="t-lbl">Households 🎁</div></div>
+    <div class="t-item"><div class="t-val" id="fri-money">₹0</div><div class="t-lbl">Money</div></div>
+    <div class="t-item"><div class="t-val" id="fri-given">0</div><div class="t-lbl">Gifts Given</div></div>
+  </div>
+  <div class="info-pill" style="background:var(--teal-soft);border-color:var(--teal);color:#0F766E">💡 Friends also come as households! Mark a <strong>household head</strong> for each friend-family — they get one return gift too.</div>
+  <div class="section-title">👫 Friends</div>
+  <div id="list-friends"></div>
+  <button class="add-btn" data-add="friends" style="border-color:var(--teal);background:var(--teal-soft);color:var(--teal)">＋ Add Friend</button>
+</div>
+
+<div class="page" id="page-expenses">
+  <div class="totals-strip" style="background:linear-gradient(135deg,var(--red),#b45309)">
+    <div class="t-item"><div class="t-val" id="exp-total">₹0</div><div class="t-lbl">Total</div></div>
+    <div class="t-item"><div class="t-val" id="exp-paid">₹0</div><div class="t-lbl">Paid</div></div>
+    <div class="t-item"><div class="t-val" id="exp-pend">₹0</div><div class="t-lbl">Pending</div></div>
+    <div class="t-item"><div class="t-val" id="exp-cnt">0</div><div class="t-lbl">Items</div></div>
+  </div>
+  <div class="info-pill" style="background:var(--red-soft);border-color:var(--red);color:#991B1B">💡 The <strong>cost of buying</strong> return gift bags goes here. <strong>Who received</strong> their gift is tracked in the Relatives & Friends tabs.</div>
+  <div class="section-title">💸 Expenses</div>
+  <div id="list-expenses"></div>
+  <button class="add-btn" data-add="expenses" style="border-color:var(--red);background:var(--red-soft);color:var(--red)">＋ Add Expense</button>
+  <div class="chart-card" style="margin-top:6px"><div class="chart-title">📊 Spend by Category</div><div class="chart-wrap" style="height:250px"><canvas id="cExpBar"></canvas></div></div>
+</div>
+
+<div class="page" id="page-howto">
+  <div class="section-title">⚙️ Turn on Live Sync</div>
+  <div class="setup-banner">
+    <b>To make everyone see the same updates</b>, connect this app to a free Google Firebase cloud (one-time, ~10 min). Follow the steps below, paste your settings into the file, then share the file. Everyone who opens it shares one live copy. 🎉
+  </div>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div><h4>Create a free Firebase project</h4><p>On a computer, go to <code>console.firebase.google.com</code> → sign in with your Google account → <b>Add project</b> → give it any name → skip Google Analytics → Create.</p></div></div>
+    <div class="step"><div class="step-num">2</div><div><h4>Add a Realtime Database</h4><p>In the left menu → <b>Build → Realtime Database → Create Database</b>. Pick the location closest to you. Choose <b>"Start in test mode"</b> → Enable.</p></div></div>
+    <div class="step"><div class="step-num">3</div><div><h4>Register a web app</h4><p>Click the gear ⚙️ → <b>Project settings</b> → scroll to "Your apps" → tap the <b>&lt;/&gt;</b> (web) icon → give it a nickname → Register app.</p></div></div>
+    <div class="step"><div class="step-num">4</div><div><h4>Copy your config</h4><p>Firebase shows a <code>firebaseConfig = {…}</code> block. Copy everything inside the braces (apiKey, databaseURL, etc.).</p></div></div>
+    <div class="step"><div class="step-num">5</div><div><h4>Paste it into this file</h4><p>Open this HTML file in any text editor → find the line near the top of the script that says <code>FIREBASE_CONFIG = {<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBiOtWHUOo5Y6iKJ1-HEveuH-cifmZQT_Y",
+    authDomain: "baby-shower-kiaan-yiaan.firebaseapp.com",
+    databaseURL: "https://baby-shower-kiaan-yiaan-default-rtdb.firebaseio.com",
+    projectId: "baby-shower-kiaan-yiaan",
+    storageBucket: "baby-shower-kiaan-yiaan.firebasestorage.app",
+    messagingSenderId: "11119363181",
+    appId: "1:11119363181:web:feddbdd4d83268addeeb64",
+    measurementId: "G-NKFBEZ0HHW"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>}</code> → paste your settings inside the braces → Save.</p></div></div>
+    <div class="step"><div class="step-num">6</div><div><h4>Share & enjoy live sync</h4><p>Send the saved file via WhatsApp / AirDrop. Everyone opens it in Safari and edits the same shared data — updates appear for everyone within a second! ☁️</p></div></div>
+  </div>
+  <div class="info-pill" style="margin-top:16px;background:var(--purple-soft);border-color:var(--purple);color:#5B21B6">🔒 <b>Privacy note:</b> Test mode lets anyone with the file read & edit the data (guest names, amounts). That's fine for sharing privately with trusted family. Only share the file with people you want editing.</div>
+  <div class="section-title" style="margin-top:24px">🛟 Backup</div>
+  <div class="actions-bar">
+    <button class="act-btn act-export" id="btnExport">⬇️ Backup Data</button>
+    <button class="act-btn act-import" id="btnImport">⬆️ Restore Data</button>
+    <button class="act-btn act-reset" id="btnReset">🔄 Reset to Sample</button>
+  </div>
+  <input type="file" id="importFile" accept=".json" style="display:none"/>
+  <div class="info-pill">Works without sync too: until you add Firebase settings, the app saves on this phone only. Charts need internet to display.</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   👇👇👇  PASTE YOUR FIREBASE SETTINGS BETWEEN THE BRACES  👇👇👇
+   (See the "Setup & Help" tab for step-by-step instructions)
+   Example of what it should look like when filled in:
+     const FIREBASE_CONFIG = {
+       apiKey: "AIza....",
+       authDomain: "my-shower.firebaseapp.com",
+       databaseURL: "https://my-shower-default-rtdb.firebaseio.com",
+       projectId: "my-shower",
+       appId: "1:1234567890:web:abc123"
+     };
+   ═══════════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {};
+const ROOM = "babyshower-main";   // everyone with the same file shares this room
+/* ═══════════════════════════════════════════════════════════════ */
+
+const SAMPLE = {
+  maternal:[
+    {name:"Mama Anand",people:3,head:true,type:"Money",amount:5000,rg:true,notes:"Mama's family"},
+    {name:"Mama Anand's Wife",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Mama Anand's Son",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Chithi Suma",people:2,head:true,type:"Money",amount:3000,rg:true,notes:""},
+    {name:"Chithi Suma's Husband",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Mama Rajan",people:4,head:true,type:"Gift",amount:0,rg:false,notes:"Baby clothes set"},
+    {name:"Cousin Priya",people:1,head:true,type:"Money",amount:1000,rg:false,notes:"Came alone"},
+  ],
+  paternal:[
+    {name:"Periappa Senthil",people:3,head:true,type:"Money",amount:4000,rg:true,notes:""},
+    {name:"Periappa's Wife",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Chithappa Kumar",people:2,head:true,type:"Gift",amount:0,rg:false,notes:"Baby toy"},
+    {name:"Chithappa's Wife",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Cousin Divya",people:1,head:true,type:"Money",amount:1500,rg:false,notes:""},
+  ],
+  friends:[
+    {name:"Divya R",group:"College",people:2,head:true,type:"Gift",amount:0,rg:true,notes:"With husband"},
+    {name:"Divya's Husband",group:"College",people:0,head:false,type:"",amount:0,rg:false,notes:""},
+    {name:"Sneha M",group:"Work",people:1,head:true,type:"Money",amount:2000,rg:false,notes:""},
+    {name:"Anitha P",group:"School",people:3,head:true,type:"Gift",amount:0,rg:true,notes:"Baby walker"},
+    {name:"Ramya K",group:"College",people:1,head:true,type:"Money",amount:1500,rg:false,notes:""},
+    {name:"Kavitha S",group:"Neighbours",people:2,head:true,type:"",amount:0,rg:false,notes:""},
+    {name:"Manju V",group:"Neighbours",people:1,head:true,type:"Money",amount:1000,rg:false,notes:""},
+  ],
+  expenses:[
+    {cat:"Food & Catering",desc:"Lunch buffet for guests",amount:8000,paid:true},
+    {cat:"Food & Catering",desc:"Evening snacks & sweets",amount:2500,paid:true},
+    {cat:"Food & Catering",desc:"Cake & desserts",amount:1500,paid:false},
+    {cat:"Return Gifts",desc:"Return gift bags – Relatives",amount:3500,paid:true},
+    {cat:"Return Gifts",desc:"Return gift bags – Friends",amount:2500,paid:false},
+    {cat:"Decoration",desc:"Balloon arch & bouquets",amount:2000,paid:true},
+    {cat:"Decoration",desc:"Baby theme backdrop",amount:1200,paid:true},
+    {cat:"Venue",desc:"Hall booking charges",amount:5000,paid:true},
+    {cat:"Miscellaneous",desc:"Invitation card printing",amount:600,paid:true},
+    {cat:"Miscellaneous",desc:"Photography & video",amount:3000,paid:false},
+  ]
+};
+
+const STORE_KEY='babyShowerData_v1';
+let DATA, useCloud=false, cloudRef=null, seeded=false;
+let isEditing=false, pendingRemote=false, applyingRemote=false;
+
+function normalize(d){
+  d=d||{};
+  ['maternal','paternal','friends','expenses'].forEach(k=>{ if(!Array.isArray(d[k]))d[k]=[]; });
+  return d;
+}
+function deepSample(){return JSON.parse(JSON.stringify(SAMPLE));}
+
+// ─── SYNC STATUS ───
+function setPill(txt,color){
+  const p=document.getElementById('savePill');
+  p.textContent=txt; p.style.background=color;
+}
+function flashSaved(){
+  if(useCloud){ setPill('☁️ Live sync on',' rgba(22,163,74,.45)'); }
+  else { setPill('💾 Saved on this phone','rgba(255,255,255,.2)'); }
+}
+
+// ─── PERSISTENCE ───
+let writeTimer;
+function save(){
+  if(useCloud && cloudRef){
+    clearTimeout(writeTimer);
+    setPill('☁️ Saving…','rgba(255,255,255,.25)');
+    writeTimer=setTimeout(()=>{ cloudRef.set(DATA).then(flashSaved).catch(()=>setPill('⚠️ Sync error','rgba(220,38,38,.5)')); },400);
+  } else {
+    try{localStorage.setItem(STORE_KEY,JSON.stringify(DATA));}catch(e){}
+    flashSaved();
+  }
+}
+function loadLocal(){
+  try{const s=localStorage.getItem(STORE_KEY);DATA=s?normalize(JSON.parse(s)):deepSample();}
+  catch(e){DATA=deepSample();}
+}
+
+// ─── CLOUD ───
+function startCloud(){
+  if(!FIREBASE_CONFIG||!FIREBASE_CONFIG.databaseURL||typeof firebase==='undefined')return false;
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    cloudRef=firebase.database().ref('trackers/'+ROOM);
+    useCloud=true;
+    firebase.database().ref('.info/connected').on('value',s=>{
+      if(s.val())flashSaved(); else setPill('📡 Offline — will sync','rgba(255,255,255,.2)');
+    });
+    cloudRef.on('value',snap=>{
+      const val=snap.val();
+      if(val===null){ if(!seeded){seeded=true;cloudRef.set(DATA);} return; }
+      seeded=true;
+      if(isEditing){ pendingRemote=true; return; }
+      applyingRemote=true;
+      DATA=normalize(val); renderAll(); updateDash();
+      applyingRemote=false;
+    });
+    return true;
+  }catch(e){console.error(e);useCloud=false;return false;}
+}
+
+// ─── EDIT FOCUS GUARD (don't yank DOM while typing) ───
+document.addEventListener('focusin',e=>{ if(e.target.classList&&e.target.classList.contains('inp'))isEditing=true; });
+document.addEventListener('focusout',e=>{
+  if(e.target.classList&&e.target.classList.contains('inp')){
+    setTimeout(()=>{
+      isEditing=false;
+      if(pendingRemote && useCloud && cloudRef){
+        pendingRemote=false;
+        cloudRef.once('value').then(s=>{const v=s.val();if(v){DATA=normalize(v);renderAll();updateDash();}});
+      }
+    },250);
+  }
+});
+
+const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN');
+const TYPES=["","Gift","Money"];
+const GROUPS=["College","Work","School","Neighbours","Other"];
+const CATS=["Food & Catering","Return Gifts","Decoration","Venue","Miscellaneous"];
+const CAT_ICON={"Food & Catering":"🍛","Return Gifts":"🎁","Decoration":"🎀","Venue":"🏛️","Miscellaneous":"📦"};
+
+function guestCard(rec,listKey,idx,side){
+  const div=document.createElement('div');
+  div.className='edit-card '+(rec.head?'head-card ':'')+(side||'');
+  const groupField=listKey==='friends'?`
+    <div class="field"><label>Group</label>
+      <select class="inp" data-k="group">${GROUPS.map(g=>`<option ${g===rec.group?'selected':''}>${g}</option>`).join('')}</select></div>`:'';
+  div.innerHTML=`
+    <div class="row-top">
+      <span class="row-num">${idx+1}</span>
+      <input class="inp inp-name" data-k="name" value="${(rec.name||'').replace(/"/g,'&quot;')}" placeholder="Full name"/>
+      <button class="del-btn" data-del="1">🗑</button>
+    </div>
+    <div class="field-grid">
+      ${groupField}
+      <div class="field"><label>People in household</label>
+        <input class="inp" type="number" inputmode="numeric" data-k="people" value="${rec.people||''}" placeholder="0"/></div>
+      <div class="field"><label>Gift or Money?</label>
+        <select class="inp" data-k="type">${TYPES.map(t=>`<option value="${t}" ${t===rec.type?'selected':''}>${t||'—'}</option>`).join('')}</select></div>
+      <div class="field"><label>Amount received (₹)</label>
+        <input class="inp" type="number" inputmode="numeric" data-k="amount" value="${rec.amount||''}" placeholder="0" ${rec.type==='Money'?'':'disabled style=opacity:.45'}/></div>
+      <div class="field"><label>Household head?</label>
+        <button class="toggle ${rec.head?'on-head':''}" data-toggle="head">${rec.head?'✅ Head':'Mark as Head'}</button></div>
+      <div class="field"><label>Return gift given?</label>
+        ${rec.head?`<button class="toggle ${rec.rg?'on-gift':''}" data-toggle="rg">${rec.rg?'✅ Given':'⏳ Pending'}</button>`:`<div style="font-size:11px;color:#cbd5e1;padding:9px;text-align:center">Only for head</div>`}</div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Notes</label>
+      <input class="inp" data-k="notes" value="${(rec.notes||'').replace(/"/g,'&quot;')}" placeholder="e.g. gift description"/></div>`;
+  div.querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(el.dataset.k==='people'||el.dataset.k==='amount')v=Number(v)||0;
+      rec[el.dataset.k]=v;
+      if(el.dataset.k==='type'){renderAll();}
+      save();updateDash();
+    });
+  });
+  div.querySelector('[data-del]').addEventListener('click',()=>{DATA[listKey].splice(idx,1);save();renderAll();updateDash();});
+  div.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t=btn.dataset.toggle;rec[t]=!rec[t];
+      if(t==='head'&&!rec.head)rec.rg=false;
+      save();renderAll();updateDash();
+    });
+  });
+  return div;
+}
+function expCard(rec,idx){
+  const div=document.createElement('div');
+  div.className='edit-card';div.style.borderLeft='5px solid var(--red)';
+  div.innerHTML=`
+    <div class="row-top">
+      <span class="row-num" style="background:var(--red-soft);color:var(--red)">${idx+1}</span>
+      <input class="inp inp-name" data-k="desc" value="${(rec.desc||'').replace(/"/g,'&quot;')}" placeholder="What did you spend on?"/>
+      <button class="del-btn" data-del="1">🗑</button>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>Category</label>
+        <select class="inp" data-k="cat">${CATS.map(c=>`<option value="${c}" ${c===rec.cat?'selected':''}>${CAT_ICON[c]} ${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Amount (₹)</label>
+        <input class="inp" type="number" inputmode="numeric" data-k="amount" value="${rec.amount||''}" placeholder="0"/></div>
+      <div class="field" style="grid-column:1/-1"><label>Paid?</label>
+        <button class="toggle ${rec.paid?'on-paid':''}" data-toggle="paid">${rec.paid?'✅ Paid':'⏳ Not paid yet'}</button></div>
+    </div>`;
+  div.querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      let v=el.value;
+      if(el.dataset.k==='amount')v=Number(v)||0;
+      rec[el.dataset.k]=v;save();updateDash();
+    });
+  });
+  div.querySelector('[data-del]').addEventListener('click',()=>{DATA.expenses.splice(idx,1);save();renderAll();updateDash();});
+  div.querySelector('[data-toggle]').addEventListener('click',()=>{rec.paid=!rec.paid;save();renderAll();updateDash();});
+  return div;
+}
+function renderAll(){
+  const m=document.getElementById('list-maternal');m.innerHTML='';
+  DATA.maternal.forEach((r,i)=>m.appendChild(guestCard(r,'maternal',i,'maternal')));
+  const p=document.getElementById('list-paternal');p.innerHTML='';
+  DATA.paternal.forEach((r,i)=>p.appendChild(guestCard(r,'paternal',i,'paternal')));
+  const f=document.getElementById('list-friends');f.innerHTML='';
+  DATA.friends.forEach((r,i)=>f.appendChild(guestCard(r,'friends',i,'')));
+  const e=document.getElementById('list-expenses');e.innerHTML='';
+  DATA.expenses.forEach((r,i)=>e.appendChild(expCard(r,i)));
+}
+function stats(){
+  const rel=[...DATA.maternal,...DATA.paternal];
+  const relHeads=rel.filter(r=>r.head).length, friHeads=DATA.friends.filter(r=>r.head).length;
+  const relMoney=rel.filter(r=>r.type==='Money').reduce((s,r)=>s+(+r.amount||0),0);
+  const friMoney=DATA.friends.filter(r=>r.type==='Money').reduce((s,r)=>s+(+r.amount||0),0);
+  const relGiven=rel.filter(r=>r.head&&r.rg).length, friGiven=DATA.friends.filter(r=>r.head&&r.rg).length;
+  const totalExp=DATA.expenses.reduce((s,r)=>s+(+r.amount||0),0);
+  const paidExp=DATA.expenses.filter(r=>r.paid).reduce((s,r)=>s+(+r.amount||0),0);
+  const catT={};CATS.forEach(c=>catT[c]=0);
+  DATA.expenses.forEach(r=>{catT[r.cat]=(catT[r.cat]||0)+(+r.amount||0);});
+  return{relCount:rel.length,friCount:DATA.friends.length,total:rel.length+DATA.friends.length,
+    relHeads,friHeads,rgNeeded:relHeads+friHeads,rgGiven:relGiven+friGiven,
+    relMoney,friMoney,moneyIn:relMoney+friMoney,relGiven,friGiven,
+    totalExp,paidExp,pend:totalExp-paidExp,catT,net:relMoney+friMoney-totalExp};
+}
+let charts={};
+function updateDash(){
+  const s=stats(),set=(id,v)=>document.getElementById(id).textContent=v;
+  set('k-rel',s.relCount);set('k-fri',s.friCount);set('k-total',s.total);set('k-rg',s.rgNeeded);
+  set('k-money',fmt(s.moneyIn));set('k-spent',fmt(s.totalExp));set('k-net',fmt(s.net));
+  document.getElementById('k-net').style.color=s.net>=0?'#FFD700':'#FCA5A5';
+  set('rel-count',s.relCount);set('rel-heads',s.relHeads);set('rel-money',fmt(s.relMoney));set('rel-given',s.relGiven);
+  set('fri-count',s.friCount);set('fri-heads',s.friHeads);set('fri-money',fmt(s.friMoney));set('fri-given',s.friGiven);
+  set('exp-total',fmt(s.totalExp));set('exp-paid',fmt(s.paidExp));set('exp-pend',fmt(s.pend));set('exp-cnt',DATA.expenses.length);
+  drawCharts(s);
+}
+function drawCharts(s){
+  Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});
+  if(typeof Chart==='undefined')return;
+  const cw=()=>({responsive:true,maintainAspectRatio:false});
+  charts.g=new Chart(cGuests,{type:'doughnut',data:{labels:['👨‍👩‍👧 Relatives','👫 Friends'],datasets:[{data:[s.relCount,s.friCount],backgroundColor:['#7C3AED','#F43F87'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}}}}});
+  charts.e=new Chart(cExp,{type:'pie',data:{labels:CATS.map(c=>CAT_ICON[c]+' '+c),datasets:[{data:CATS.map(c=>s.catT[c]||0),backgroundColor:['#EA580C','#F43F87','#7C3AED','#0D9488','#F59E0B'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}}});
+  charts.rg=new Chart(cRG,{type:'doughnut',data:{labels:['✅ Given','⏳ Pending'],datasets:[{data:[s.rgGiven,Math.max(0,s.rgNeeded-s.rgGiven)],backgroundColor:['#16A34A','#FBCFE8'],borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{...cw(),cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} households`}}}}});
+  charts.b=new Chart(cBal,{type:'bar',data:{labels:['💰 Received','💸 Spent'],datasets:[{data:[s.moneyIn,s.totalExp],backgroundColor:['#16A34A','#DC2626'],borderRadius:10,borderSkipped:false}]},options:{...cw(),indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'#f1f5f9'}},y:{grid:{display:false}}}}});
+  if(document.getElementById('cExpBar')){
+    charts.eb=new Chart(cExpBar,{type:'bar',data:{labels:CATS.map(c=>CAT_ICON[c]),datasets:[{data:CATS.map(c=>s.catT[c]||0),backgroundColor:['#EA580C','#F43F87','#7C3AED','#0D9488','#F59E0B'],borderRadius:10,borderSkipped:false}]},options:{...cw(),plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>CATS[items[0].dataIndex],label:ctx=>' '+fmt(ctx.raw)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')},grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+  }
+}
+document.querySelectorAll('.tab-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+    document.getElementById('page-'+b.dataset.tab).classList.add('active');
+    b.classList.add('active');setTimeout(updateDash,50);
+  });
+});
+document.querySelectorAll('[data-add]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const k=btn.dataset.add;
+    if(k==='expenses')DATA.expenses.push({cat:"Miscellaneous",desc:"",amount:0,paid:false});
+    else if(k==='friends')DATA.friends.push({name:"",group:"Other",people:1,head:true,type:"",amount:0,rg:false,notes:""});
+    else DATA[k].push({name:"",people:1,head:true,type:"",amount:0,rg:false,notes:""});
+    save();renderAll();updateDash();window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  });
+});
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='baby-shower-data.json';a.click();
+});
+document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change',ev=>{
+  const file=ev.target.files[0];if(!file)return;const r=new FileReader();
+  r.onload=()=>{try{DATA=normalize(JSON.parse(r.result));save();renderAll();updateDash();alert('✅ Data restored!');}catch(e){alert('⚠️ Could not read that file.');}};
+  r.readAsText(file);
+});
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(confirm('Reset everything back to the sample data? Current entries will be lost for everyone sharing this.')){DATA=deepSample();save();renderAll();updateDash();}
+});
+
+// ─── SETUP NOTICE ON DASHBOARD ───
+function showSetupNotice(){
+  const el=document.getElementById('setupNotice');
+  if(useCloud){
+    el.innerHTML='<div class="setup-banner" style="background:linear-gradient(135deg,#DCFCE7,#BBF7D0);border-color:#16A34A;color:#166534">☁️ <b>Live sync is ON.</b> Everyone sharing this file sees the same data, updated in real time.</div>';
+  }else{
+    el.innerHTML='<div class="setup-banner">⚙️ <b>Live sync is not set up yet.</b> Right now data saves on this phone only. Open the <b>Setup & Help</b> tab to connect free cloud sync so everyone shares one copy.</div>';
+  }
+}
+
+// ─── INIT ───
+loadLocal();
+const cloudOK=startCloud();
+renderAll();updateDash();showSetupNotice();
+if(!cloudOK)flashSaved();
+window.addEventListener('load',()=>setTimeout(updateDash,300));
+</script>
+</body>
+</html>
