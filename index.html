@@ -89,6 +89,15 @@
   .grp-header .chev{transition:transform .2s;font-size:13px;}
   .grp-header.collapsed .chev{transform:rotate(-90deg);}
   .empty-msg{text-align:center;color:var(--slate);font-size:13px;padding:16px;font-style:italic;}
+  .chk-progress{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow);}
+  .chk-progress .bar{height:14px;background:var(--border);border-radius:10px;overflow:hidden;margin-top:10px;}
+  .chk-progress .fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:10px;transition:width .5s;}
+  .chk-sec{display:flex;align-items:center;gap:8px;background:var(--purple-soft);border-radius:12px;padding:8px 10px;margin:16px 0 10px;}
+  .chk-secname{flex:1;font-weight:700;color:var(--purple);background:transparent;border:1.5px solid transparent;padding:8px 10px;border-radius:9px;font-size:15px;}
+  .chk-secname:focus{background:#fff;border-color:var(--purple);outline:none;}
+  .chk-cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:3px 10px;flex-shrink:0;}
+  .chk-tick{background:none;border:none;font-size:22px;cursor:pointer;flex-shrink:0;padding:0;line-height:1;}
+  .chk-done .inp-name{text-decoration:line-through;color:var(--slate);}
   .actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
   .act-btn{flex:1;min-width:90px;padding:11px;border:none;border-radius:11px;font-size:12.5px;font-weight:600;cursor:pointer;}
   .act-export{background:var(--teal);color:#fff;}.act-import{background:var(--purple);color:#fff;}.act-reset{background:var(--red-soft);color:var(--red);}
@@ -112,6 +121,7 @@
   <button class="tab-btn" data-tab="relatives">👨‍👩‍👧 Relatives</button>
   <button class="tab-btn" data-tab="friends">👫 Friends</button>
   <button class="tab-btn" data-tab="expenses">💸 Expenses</button>
+  <button class="tab-btn" data-tab="checklist">✅ Checklist</button>
   <button class="tab-btn" data-tab="howto">⚙️ Setup & Help</button>
 </div>
 
@@ -213,6 +223,19 @@
   <div class="chart-card" style="margin-top:6px"><div class="chart-title">📊 Spend by Category</div><div class="chart-wrap" style="height:250px"><canvas id="cExpBar"></canvas></div></div>
 </div>
 
+<div class="page" id="page-checklist">
+  <div class="section-title">✅ Planning Checklist</div>
+  <div class="chk-progress">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong style="font-size:15px;">🎯 Overall Progress</strong>
+      <span id="chk-progress-text" style="font-size:13px;color:var(--slate);">0 of 0 done · 0%</span>
+    </div>
+    <div class="bar"><div class="fill" id="chk-progress-fill" style="width:0%"></div></div>
+  </div>
+  <div class="info-pill" style="background:var(--teal-soft);border-color:var(--teal);color:#0F766E">💡 Tap ⬜ to tick off a task. You can rename a section, add tasks, or add whole new sections to match your own plan.</div>
+  <div id="list-checklist"></div>
+</div>
+
 <div class="page" id="page-howto">
   <div class="section-title">⚙️ Turn on Live Sync</div>
   <div class="setup-banner">
@@ -299,6 +322,36 @@ const SAMPLE = {
     {cat:"Venue",desc:"Hall booking charges",amount:5000,paid:true},
     {cat:"Miscellaneous",desc:"Invitation card printing",amount:600,paid:true},
     {cat:"Miscellaneous",desc:"Photography & video",amount:3000,paid:false},
+  ],
+  checklist:[
+    {name:"🏛️ Venue & Setup",items:[
+      {task:"Book the hall",who:"Me",due:"",done:true},
+      {task:"Arrange tables & chairs",who:"",due:"",done:false},
+      {task:"Confirm parking for guests",who:"",due:"",done:false},
+    ]},
+    {name:"🍛 Food & Cake",items:[
+      {task:"Finalise caterer & menu",who:"",due:"",done:true},
+      {task:"Order the cake",who:"",due:"",done:false},
+      {task:"Arrange snacks & drinks",who:"",due:"",done:false},
+    ]},
+    {name:"🎀 Decorations",items:[
+      {task:"Buy balloons & backdrop",who:"",due:"",done:false},
+      {task:"Flowers / centrepieces",who:"",due:"",done:false},
+    ]},
+    {name:"💌 Guests & Invites",items:[
+      {task:"Finalise guest list",who:"",due:"",done:true},
+      {task:"Send out invitations",who:"",due:"",done:false},
+      {task:"Collect RSVPs",who:"",due:"",done:false},
+    ]},
+    {name:"🎁 Return Gifts",items:[
+      {task:"Decide on return gift",who:"",due:"",done:false},
+      {task:"Buy & pack return gifts",who:"",due:"",done:false},
+    ]},
+    {name:"📸 Day-of",items:[
+      {task:"Arrange photographer",who:"",due:"",done:false},
+      {task:"Prepare music / playlist",who:"",due:"",done:false},
+      {task:"Plan games & activities",who:"",due:"",done:false},
+    ]},
   ]
 };
 
@@ -308,7 +361,7 @@ let isEditing=false, pendingRemote=false, applyingRemote=false;
 
 function normalize(d){
   d=d||{};
-  ['maternal','paternal','friends','expenses'].forEach(k=>{ if(!Array.isArray(d[k]))d[k]=[]; });
+  ['maternal','paternal','friends','expenses','checklist'].forEach(k=>{ if(!Array.isArray(d[k]))d[k]=[]; });
   return d;
 }
 function deepSample(){return JSON.parse(JSON.stringify(SAMPLE));}
@@ -531,7 +584,61 @@ function renderExpenses(){
   const e=document.getElementById('list-expenses');e.innerHTML='';
   DATA.expenses.forEach((r,i)=>e.appendChild(expCard(r,i)));
 }
-function renderAll(){renderRelatives();renderFriends();renderExpenses();}
+function chkItemCard(sec,it,ii){
+  const div=document.createElement('div');
+  div.className='edit-card chk-item'+(it.done?' chk-done':'');
+  div.innerHTML=
+    '<div class="row-top">'+
+      '<button class="chk-tick" data-toggle="done">'+(it.done?'✅':'⬜')+'</button>'+
+      '<input class="inp inp-name" data-k="task" value="'+(it.task||'').replace(/"/g,'&quot;')+'" placeholder="Task…"/>'+
+      '<button class="del-btn" data-del="1">🗑</button>'+
+    '</div>'+
+    '<div class="field-grid">'+
+      '<div class="field"><label>Responsible</label><input class="inp" data-k="who" value="'+(it.who||'').replace(/"/g,'&quot;')+'" placeholder="Who?"/></div>'+
+      '<div class="field"><label>Due date</label><input class="inp" type="date" data-k="due" value="'+(it.due||'')+'"/></div>'+
+    '</div>';
+  div.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{it[el.dataset.k]=el.value;save();}));
+  div.querySelector('[data-del]').addEventListener('click',()=>{sec.items.splice(ii,1);save();renderChecklist();});
+  div.querySelector('[data-toggle]').addEventListener('click',()=>{it.done=!it.done;save();renderChecklist();});
+  return div;
+}
+function renderChecklist(){
+  const cont=document.getElementById('list-checklist');
+  if(!cont)return;
+  cont.innerHTML='';
+  let total=0,done=0;
+  DATA.checklist.forEach((sec,si)=>{
+    const items=sec.items||(sec.items=[]);
+    const sd=items.filter(x=>x.done).length;
+    total+=items.length;done+=sd;
+    const hd=document.createElement('div');
+    hd.className='chk-sec';
+    hd.innerHTML='<input class="inp chk-secname" data-k="name" value="'+(sec.name||'').replace(/"/g,'&quot;')+'" placeholder="Section name"/>'+
+                 '<span class="chk-cnt">'+sd+'/'+items.length+'</span>'+
+                 '<button class="del-btn" data-delsec="1">🗑</button>';
+    hd.querySelector('[data-k]').addEventListener('input',e=>{sec.name=e.target.value;save();});
+    hd.querySelector('[data-delsec]').addEventListener('click',()=>{
+      if(confirm('Delete this whole section and its tasks?')){DATA.checklist.splice(si,1);save();renderChecklist();}
+    });
+    cont.appendChild(hd);
+    items.forEach((it,ii)=>cont.appendChild(chkItemCard(sec,it,ii)));
+    const add=document.createElement('button');
+    add.className='add-btn';
+    add.style.cssText='border-color:var(--teal);background:var(--teal-soft);color:var(--teal);margin-bottom:20px;';
+    add.textContent='＋ Add task';
+    add.addEventListener('click',()=>{items.push({task:'',who:'',due:'',done:false});save();renderChecklist();});
+    cont.appendChild(add);
+  });
+  const addsec=document.createElement('button');
+  addsec.className='add-btn';
+  addsec.textContent='＋ Add new section';
+  addsec.addEventListener('click',()=>{DATA.checklist.push({name:'New Section',items:[]});save();renderChecklist();});
+  cont.appendChild(addsec);
+  const pct=total?Math.round(done/total*100):0;
+  const pf=document.getElementById('chk-progress-fill');if(pf)pf.style.width=pct+'%';
+  const pt=document.getElementById('chk-progress-text');if(pt)pt.textContent=done+' of '+total+' done · '+pct+'%';
+}
+function renderAll(){renderRelatives();renderFriends();renderExpenses();renderChecklist();}
 function stats(){
   const rel=[...DATA.maternal,...DATA.paternal];
   const relHeads=rel.filter(r=>r.head).length, friHeads=DATA.friends.filter(r=>r.head).length;
@@ -639,7 +746,7 @@ bindCtrl('fri-rg',friFilter,'rg',renderFriends);
 // ─── INIT ───
 const cloudOK=startCloud();
 if(cloudOK){
-  DATA={maternal:[],paternal:[],friends:[],expenses:[]};  // wait for Firebase; no sample flash
+  DATA={maternal:[],paternal:[],friends:[],expenses:[],checklist:[]};  // wait for Firebase; no sample flash
 }else{
   loadLocal();
 }
