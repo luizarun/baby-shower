@@ -104,11 +104,23 @@
 
 <div class="page active" id="page-dashboard">
   <div id="setupNotice"></div>
+
+  <div class="section-title">👨‍👩‍👧 Relatives</div>
   <div class="kpi-grid">
-    <div class="kpi purple"><div class="kpi-icon">👨‍👩‍👧</div><div class="kpi-value" id="k-rel">0</div><div class="kpi-label">Relatives</div></div>
-    <div class="kpi rose"><div class="kpi-icon">👫</div><div class="kpi-value" id="k-fri">0</div><div class="kpi-label">Friends</div></div>
+    <div class="kpi purple"><div class="kpi-icon">👥</div><div class="kpi-value" id="k-rel-people">0</div><div class="kpi-label">People Attending</div></div>
+    <div class="kpi gold"><div class="kpi-icon">🎁</div><div class="kpi-value" id="k-rel-rg">0</div><div class="kpi-label">Return Gifts (Households)</div></div>
+  </div>
+
+  <div class="section-title">👫 Friends</div>
+  <div class="kpi-grid">
+    <div class="kpi rose"><div class="kpi-icon">👥</div><div class="kpi-value" id="k-fri-people">0</div><div class="kpi-label">People Attending</div></div>
+    <div class="kpi gold"><div class="kpi-icon">🎁</div><div class="kpi-value" id="k-fri-rg">0</div><div class="kpi-label">Return Gifts (Households)</div></div>
+  </div>
+
+  <div class="section-title">🎉 Everyone Together</div>
+  <div class="kpi-grid">
     <div class="kpi teal"><div class="kpi-icon">🎉</div><div class="kpi-value" id="k-total">0</div><div class="kpi-label">Total Guests</div></div>
-    <div class="kpi gold"><div class="kpi-icon">🎁</div><div class="kpi-value" id="k-rg">0</div><div class="kpi-label">Return Gifts Needed</div></div>
+    <div class="kpi gold"><div class="kpi-icon">🎁</div><div class="kpi-value" id="k-rg">0</div><div class="kpi-label">Total Return Gifts</div></div>
   </div>
   <div class="kpi-grid">
     <div class="kpi green"><div class="kpi-icon">💰</div><div class="kpi-value" id="k-money" style="font-size:20px">₹0</div><div class="kpi-label">Money Received</div></div>
@@ -118,6 +130,8 @@
     <div><div class="label">✨ Net Balance</div><div class="sub">Money Received − Total Expenses</div></div>
     <div class="amount" id="k-net">₹0</div>
   </div>
+
+  <div class="section-title">📊 Charts</div>
   <div class="chart-grid">
     <div class="chart-card"><div class="chart-title">👥 Guest Breakdown</div><div class="chart-wrap"><canvas id="cGuests"></canvas></div></div>
     <div class="chart-card"><div class="chart-title">💸 Expense Breakdown</div><div class="chart-wrap"><canvas id="cExp"></canvas></div></div>
@@ -446,7 +460,9 @@ function stats(){
 let charts={};
 function updateDash(){
   const s=stats(),set=(id,v)=>document.getElementById(id).textContent=v;
-  set('k-rel',s.relPeople);set('k-fri',s.friPeople);set('k-total',s.total);set('k-rg',s.rgNeeded);
+  set('k-rel-people',s.relPeople);set('k-rel-rg',s.relHeads);
+  set('k-fri-people',s.friPeople);set('k-fri-rg',s.friHeads);
+  set('k-total',s.total);set('k-rg',s.rgNeeded);
   set('k-money',fmt(s.moneyIn));set('k-spent',fmt(s.totalExp));set('k-net',fmt(s.net));
   document.getElementById('k-net').style.color=s.net>=0?'#FFD700':'#FCA5A5';
   set('rel-count',s.relPeople);set('rel-heads',s.relHeads);set('rel-money',fmt(s.relMoney));set('rel-given',s.relGiven);
@@ -508,8 +524,12 @@ function showSetupNotice(){
 }
 
 // ─── INIT ───
-loadLocal();
 const cloudOK=startCloud();
+if(cloudOK){
+  DATA={maternal:[],paternal:[],friends:[],expenses:[]};  // wait for Firebase; no sample flash
+}else{
+  loadLocal();
+}
 renderAll();updateDash();showSetupNotice();
 if(!cloudOK)flashSaved();
 window.addEventListener('load',()=>setTimeout(updateDash,300));
