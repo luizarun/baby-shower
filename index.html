@@ -76,6 +76,19 @@
   .toggle.on-gift{background:var(--green);color:#fff;border-color:var(--green);}
   .toggle.on-paid{background:var(--green);color:#fff;border-color:var(--green);}
   .add-btn{width:100%;padding:13px;border:2px dashed var(--purple);background:var(--purple-soft);color:var(--purple);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:18px;}
+  .controls{display:flex;flex-direction:column;gap:9px;margin-bottom:14px;}
+  .search-wrap{position:relative;}
+  .search-wrap input{width:100%;padding:12px 12px 12px 40px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;color:var(--ink);background:#fff;}
+  .search-wrap input:focus{outline:none;border-color:var(--purple);}
+  .search-wrap .si{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.5;font-size:15px;}
+  .filter-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .filter-row select{flex:1;min-width:104px;padding:10px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink);}
+  .filter-row select:focus{outline:none;border-color:var(--purple);}
+  .grp-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--purple-soft);border-radius:12px;padding:12px 15px;margin:8px 0 10px;font-weight:700;color:var(--purple);font-size:15px;user-select:none;}
+  .grp-header .cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:2px 10px;margin-left:6px;}
+  .grp-header .chev{transition:transform .2s;font-size:13px;}
+  .grp-header.collapsed .chev{transform:rotate(-90deg);}
+  .empty-msg{text-align:center;color:var(--slate);font-size:13px;padding:16px;font-style:italic;}
   .actions-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
   .act-btn{flex:1;min-width:90px;padding:11px;border:none;border-radius:11px;font-size:12.5px;font-weight:600;cursor:pointer;}
   .act-export{background:var(--teal);color:#fff;}.act-import{background:var(--purple);color:#fff;}.act-reset{background:var(--red-soft);color:var(--red);}
@@ -150,10 +163,18 @@
     <div class="t-item"><div class="t-val" id="rel-given">0</div><div class="t-lbl">Gifts Given</div></div>
   </div>
   <div class="info-pill">💡 Add each person as a row. Mark the <strong>household head</strong> — only heads get a return gift (one per household). "People" = how many are coming from that household.</div>
-  <div class="section-title">🌸 Maternal</div>
+  <div class="controls">
+    <div class="search-wrap"><span class="si">🔍</span><input id="rel-search" class="ctrl" placeholder="Search relatives by name…"/></div>
+    <div class="filter-row">
+      <select id="rel-type" class="ctrl"><option value="All">💝 All types</option><option value="Gift">🎁 Gift</option><option value="Money">💰 Money</option><option value="None">— Not given</option></select>
+      <select id="rel-role" class="ctrl"><option value="All">👥 Everyone</option><option value="Head">🎩 Heads only</option><option value="Member">Members only</option></select>
+      <select id="rel-rg" class="ctrl"><option value="All">🎁 Any gift status</option><option value="Pending">⏳ Return gift pending</option><option value="Given">✅ Return gift given</option></select>
+    </div>
+  </div>
+  <div class="grp-header" id="hdr-maternal"><span>🌸 Maternal <span class="cnt" id="cnt-maternal">0</span></span><span class="chev">▾</span></div>
   <div id="list-maternal"></div>
   <button class="add-btn" data-add="maternal">＋ Add Maternal Relative</button>
-  <div class="section-title">💜 Paternal</div>
+  <div class="grp-header" id="hdr-paternal"><span>💜 Paternal <span class="cnt" id="cnt-paternal">0</span></span><span class="chev">▾</span></div>
   <div id="list-paternal"></div>
   <button class="add-btn" data-add="paternal">＋ Add Paternal Relative</button>
 </div>
@@ -166,7 +187,14 @@
     <div class="t-item"><div class="t-val" id="fri-given">0</div><div class="t-lbl">Gifts Given</div></div>
   </div>
   <div class="info-pill" style="background:var(--teal-soft);border-color:var(--teal);color:#0F766E">💡 Friends also come as households! Mark a <strong>household head</strong> for each friend-family — they get one return gift too.</div>
-  <div class="section-title">👫 Friends</div>
+  <div class="controls">
+    <div class="search-wrap"><span class="si">🔍</span><input id="fri-search" class="ctrl" placeholder="Search friends by name…"/></div>
+    <div class="filter-row">
+      <select id="fri-group" class="ctrl"><option value="All">👯 All groups</option><option value="College">College</option><option value="Work">Work</option><option value="School">School</option><option value="Neighbours">Neighbours</option><option value="Other">Other</option></select>
+      <select id="fri-type" class="ctrl"><option value="All">💝 All types</option><option value="Gift">🎁 Gift</option><option value="Money">💰 Money</option><option value="None">— Not given</option></select>
+      <select id="fri-rg" class="ctrl"><option value="All">🎁 Any gift status</option><option value="Pending">⏳ Return gift pending</option><option value="Given">✅ Return gift given</option></select>
+    </div>
+  </div>
   <div id="list-friends"></div>
   <button class="add-btn" data-add="friends" style="border-color:var(--teal);background:var(--teal-soft);color:var(--teal)">＋ Add Friend</button>
 </div>
@@ -429,16 +457,81 @@ function expCard(rec,idx){
   div.querySelector('[data-toggle]').addEventListener('click',()=>{rec.paid=!rec.paid;save();renderAll();updateDash();});
   return div;
 }
-function renderAll(){
-  const m=document.getElementById('list-maternal');m.innerHTML='';
-  DATA.maternal.forEach((r,i)=>m.appendChild(guestCard(r,'maternal',i,'maternal')));
-  const p=document.getElementById('list-paternal');p.innerHTML='';
-  DATA.paternal.forEach((r,i)=>p.appendChild(guestCard(r,'paternal',i,'paternal')));
-  const f=document.getElementById('list-friends');f.innerHTML='';
-  DATA.friends.forEach((r,i)=>f.appendChild(guestCard(r,'friends',i,'')));
+// ─── SEARCH / FILTER / COLLAPSE STATE ───
+const relFilter={search:'',type:'All',role:'All',rg:'All'};
+const friFilter={search:'',type:'All',role:'All',rg:'All',group:'All'};
+const collapsed={};
+
+function matchFilters(rec,f){
+  if(f.search){
+    const q=f.search.toLowerCase();
+    if(!((rec.name||'').toLowerCase().includes(q) || (rec.notes||'').toLowerCase().includes(q))) return false;
+  }
+  if(f.type&&f.type!=='All'){
+    if(f.type==='None'){ if(rec.type) return false; }
+    else if(rec.type!==f.type) return false;
+  }
+  if(f.role&&f.role!=='All'){
+    if(f.role==='Head'&&!rec.head) return false;
+    if(f.role==='Member'&&rec.head) return false;
+  }
+  if(f.rg&&f.rg!=='All'){
+    if(f.rg==='Given'&&!(rec.head&&rec.rg)) return false;
+    if(f.rg==='Pending'&&!(rec.head&&!rec.rg)) return false;
+  }
+  if(f.group&&f.group!=='All'){ if((rec.group||'Other')!==f.group) return false; }
+  return true;
+}
+const relActive=()=>relFilter.search||relFilter.type!=='All'||relFilter.role!=='All'||relFilter.rg!=='All';
+const friActive=()=>friFilter.search||friFilter.type!=='All'||friFilter.role!=='All'||friFilter.rg!=='All'||friFilter.group!=='All';
+
+function renderSide(side){
+  const cont=document.getElementById('list-'+side);
+  const hdr=document.getElementById('hdr-'+side);
+  const cnt=document.getElementById('cnt-'+side);
+  const items=DATA[side].map((r,i)=>({r,i})).filter(x=>matchFilters(x.r,relFilter));
+  if(cnt)cnt.textContent=items.length;
+  const isColl=collapsed[side]&&!relActive();
+  if(hdr)hdr.classList.toggle('collapsed',isColl);
+  cont.style.display=isColl?'none':'';
+  cont.innerHTML='';
+  if(isColl)return;
+  if(items.length===0){cont.innerHTML='<div class="empty-msg">No matches</div>';return;}
+  items.forEach(x=>cont.appendChild(guestCard(x.r,side,x.i,side)));
+}
+function renderRelatives(){renderSide('maternal');renderSide('paternal');}
+
+function renderFriends(){
+  const cont=document.getElementById('list-friends');cont.innerHTML='';
+  const active=friActive();
+  const order=[];
+  GROUPS.forEach(g=>{if(DATA.friends.some(r=>(r.group||'Other')===g))order.push(g);});
+  DATA.friends.forEach(r=>{const g=r.group||'Other';if(!order.includes(g))order.push(g);});
+  let any=false;
+  order.forEach(g=>{
+    if(friFilter.group!=='All'&&friFilter.group!==g)return;
+    const items=DATA.friends.map((r,i)=>({r,i})).filter(x=>(x.r.group||'Other')===g&&matchFilters(x.r,friFilter));
+    if(items.length===0&&active)return;
+    any=true;
+    const key='fri:'+g;
+    const isColl=collapsed[key]&&!active;
+    const hdr=document.createElement('div');
+    hdr.className='grp-header'+(isColl?' collapsed':'');
+    hdr.innerHTML='<span>👯 '+g+' <span class="cnt">'+items.length+'</span></span><span class="chev">▾</span>';
+    hdr.addEventListener('click',()=>{collapsed[key]=!collapsed[key];renderFriends();});
+    cont.appendChild(hdr);
+    if(!isColl){
+      if(items.length===0)cont.insertAdjacentHTML('beforeend','<div class="empty-msg">No matches</div>');
+      else items.forEach(x=>cont.appendChild(guestCard(x.r,'friends',x.i,'')));
+    }
+  });
+  if(!any)cont.innerHTML='<div class="empty-msg">No matches</div>';
+}
+function renderExpenses(){
   const e=document.getElementById('list-expenses');e.innerHTML='';
   DATA.expenses.forEach((r,i)=>e.appendChild(expCard(r,i)));
 }
+function renderAll(){renderRelatives();renderFriends();renderExpenses();}
 function stats(){
   const rel=[...DATA.maternal,...DATA.paternal];
   const relHeads=rel.filter(r=>r.head).length, friHeads=DATA.friends.filter(r=>r.head).length;
@@ -522,6 +615,26 @@ function showSetupNotice(){
     el.innerHTML='<div class="setup-banner">⚙️ <b>Live sync is not set up yet.</b> Right now data saves on this phone only. Open the <b>Setup & Help</b> tab to connect free cloud sync so everyone shares one copy.</div>';
   }
 }
+
+// ─── SEARCH / FILTER / COLLAPSE WIRING ───
+function bindCtrl(id,obj,key,fn){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const ev=el.tagName==='SELECT'?'change':'input';
+  el.addEventListener(ev,()=>{obj[key]=el.value;fn();});
+}
+bindCtrl('rel-search',relFilter,'search',renderRelatives);
+bindCtrl('rel-type',relFilter,'type',renderRelatives);
+bindCtrl('rel-role',relFilter,'role',renderRelatives);
+bindCtrl('rel-rg',relFilter,'rg',renderRelatives);
+bindCtrl('fri-search',friFilter,'search',renderFriends);
+bindCtrl('fri-group',friFilter,'group',renderFriends);
+bindCtrl('fri-type',friFilter,'type',renderFriends);
+bindCtrl('fri-rg',friFilter,'rg',renderFriends);
+['maternal','paternal'].forEach(side=>{
+  const h=document.getElementById('hdr-'+side);
+  if(h)h.addEventListener('click',()=>{collapsed[side]=!collapsed[side];renderSide(side);});
+});
 
 // ─── INIT ───
 const cloudOK=startCloud();
