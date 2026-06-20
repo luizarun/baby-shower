@@ -93,6 +93,8 @@
   .chk-progress .bar{height:14px;background:var(--border);border-radius:10px;overflow:hidden;margin-top:10px;}
   .chk-progress .fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:10px;transition:width .5s;}
   .chk-sec{display:flex;align-items:center;gap:8px;background:var(--purple-soft);border-radius:12px;padding:8px 10px;margin:16px 0 10px;}
+  .chk-sec .chev{transition:transform .2s;font-size:13px;cursor:pointer;color:var(--purple);padding:4px 6px;flex-shrink:0;}
+  .chk-sec.collapsed .chev{transform:rotate(-90deg);}
   .chk-secname{flex:1;font-weight:700;color:var(--purple);background:transparent;border:1.5px solid transparent;padding:8px 10px;border-radius:9px;font-size:15px;}
   .chk-secname:focus{background:#fff;border-color:var(--purple);outline:none;}
   .chk-cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:3px 10px;flex-shrink:0;}
@@ -234,6 +236,7 @@
     <div class="bar"><div class="fill" id="chk-progress-fill" style="width:0%"></div></div>
   </div>
   <div class="info-pill" style="background:var(--teal-soft);border-color:var(--teal);color:#0F766E">💡 Tap ⬜ to tick off a task. You can rename a section, add tasks, or add whole new sections to match your own plan.</div>
+  <div class="controls"><div class="search-wrap"><span class="si">🔍</span><input id="chk-search" class="ctrl" placeholder="Search tasks…"/></div></div>
   <div id="list-checklist"></div>
 </div>
 
@@ -515,6 +518,7 @@ function expCard(rec,idx){
 }
 // ─── SEARCH / FILTER / COLLAPSE STATE ───
 const relFilter={search:'',type:'All',role:'All',rg:'All'};
+const chkFilter={search:''};
 const friFilter={search:'',type:'All',role:'All',rg:'All',group:'All'};
 const collapsed={};
 
@@ -615,34 +619,49 @@ function renderChecklist(){
   const cont=document.getElementById('list-checklist');
   if(!cont)return;
   cont.innerHTML='';
+  const q=(chkFilter.search||'').toLowerCase();
+  const active=!!q;
   let total=0,done=0;
   DATA.checklist.forEach((sec,si)=>{
     const items=sec.items||(sec.items=[]);
     const sd=items.filter(x=>x.done).length;
     total+=items.length;done+=sd;
+    const fitems=items.map((it,ii)=>({it,ii})).filter(x=>!active||(((x.it.task||'')+' '+(x.it.who||'')).toLowerCase().includes(q)));
+    if(active&&fitems.length===0)return;
+    const key='chk:'+si;
+    const isColl=collapsed[key]&&!active;
     const hd=document.createElement('div');
-    hd.className='chk-sec';
-    hd.innerHTML='<input class="inp chk-secname" data-k="name" value="'+(sec.name||'').replace(/"/g,'&quot;')+'" placeholder="Section name"/>'+
+    hd.className='chk-sec'+(isColl?' collapsed':'');
+    hd.innerHTML='<span class="chev" data-collapse="1">▾</span>'+
+                 '<input class="inp chk-secname" data-k="name" value="'+(sec.name||'').replace(/"/g,'&quot;')+'" placeholder="Section name"/>'+
                  '<span class="chk-cnt">'+sd+'/'+items.length+'</span>'+
                  '<button class="del-btn" data-delsec="1">🗑</button>';
+    hd.querySelector('[data-collapse]').addEventListener('click',()=>{collapsed[key]=!collapsed[key];renderChecklist();});
     hd.querySelector('[data-k]').addEventListener('input',e=>{sec.name=e.target.value;save();});
     hd.querySelector('[data-delsec]').addEventListener('click',()=>{
       if(confirm('Delete this whole section and its tasks?')){DATA.checklist.splice(si,1);save();renderChecklist();}
     });
     cont.appendChild(hd);
-    items.forEach((it,ii)=>cont.appendChild(chkItemCard(sec,it,ii)));
-    const add=document.createElement('button');
-    add.className='add-btn';
-    add.style.cssText='border-color:var(--teal);background:var(--teal-soft);color:var(--teal);margin-bottom:20px;';
-    add.textContent='＋ Add task';
-    add.addEventListener('click',()=>{items.push({task:'',who:'',due:'',done:false});save();renderChecklist();});
-    cont.appendChild(add);
+    if(isColl)return;
+    fitems.forEach(x=>cont.appendChild(chkItemCard(sec,x.it,x.ii)));
+    if(!active){
+      const add=document.createElement('button');
+      add.className='add-btn';
+      add.style.cssText='border-color:var(--teal);background:var(--teal-soft);color:var(--teal);margin-bottom:20px;';
+      add.textContent='＋ Add task';
+      add.addEventListener('click',()=>{items.push({task:'',who:'',due:'',done:false});save();renderChecklist();});
+      cont.appendChild(add);
+    }
   });
-  const addsec=document.createElement('button');
-  addsec.className='add-btn';
-  addsec.textContent='＋ Add new section';
-  addsec.addEventListener('click',()=>{DATA.checklist.push({name:'New Section',items:[]});save();renderChecklist();});
-  cont.appendChild(addsec);
+  if(!active){
+    const addsec=document.createElement('button');
+    addsec.className='add-btn';
+    addsec.textContent='＋ Add new section';
+    addsec.addEventListener('click',()=>{DATA.checklist.push({name:'New Section',items:[]});save();renderChecklist();});
+    cont.appendChild(addsec);
+  }else if(cont.children.length===0){
+    cont.innerHTML='<div class="empty-msg">No matching tasks</div>';
+  }
   const pct=total?Math.round(done/total*100):0;
   const pf=document.getElementById('chk-progress-fill');if(pf)pf.style.width=pct+'%';
   const pt=document.getElementById('chk-progress-text');if(pt)pt.textContent=done+' of '+total+' done · '+pct+'%';
@@ -748,6 +767,11 @@ bindCtrl('fri-search',friFilter,'search',renderFriends);
 bindCtrl('fri-group',friFilter,'group',renderFriends);
 bindCtrl('fri-type',friFilter,'type',renderFriends);
 bindCtrl('fri-rg',friFilter,'rg',renderFriends);
+bindCtrl('chk-search',chkFilter,'search',renderChecklist);
+// Fix double-tap: keep focus so action buttons fire on the first tap even when a field is focused
+document.addEventListener('mousedown',e=>{
+  if(e.target.closest&&e.target.closest('.add-btn,.del-btn,.toggle,.chk-tick,.grp-header,.chev')) e.preventDefault();
+});
 ['maternal','paternal'].forEach(side=>{
   const h=document.getElementById('hdr-'+side);
   if(h)h.addEventListener('click',()=>{collapsed[side]=!collapsed[side];renderSide(side);});
