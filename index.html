@@ -95,6 +95,20 @@
   .chk-sec{display:flex;align-items:center;gap:8px;background:var(--purple-soft);border-radius:12px;padding:8px 10px;margin:16px 0 10px;}
   .chk-sec .chev{transition:transform .2s;font-size:13px;cursor:pointer;color:var(--purple);padding:4px 6px;flex-shrink:0;}
   .chk-sec.collapsed .chev{transform:rotate(-90deg);}
+  .chk-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:7px 10px;margin-bottom:7px;}
+  .chk-row.chk-done{background:#FAFBF8;opacity:.72;}
+  .chk-row .chk-task{flex:1;min-width:130px;border:1.5px solid transparent;background:transparent;border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit;color:var(--ink);}
+  .chk-row .chk-task:focus{outline:none;border-color:var(--purple);background:#fff;}
+  .chk-row.chk-done .chk-task{text-decoration:line-through;color:var(--slate);}
+  .chk-row .chk-who{width:104px;border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:7px 8px;font-size:12.5px;font-family:inherit;color:var(--slate);}
+  .chk-row .chk-who:focus{outline:none;border-color:var(--purple);}
+  .chk-row .chk-sectag{width:100%;font-size:11px;color:var(--purple);font-weight:600;padding-left:34px;}
+  .chk-row .del-btn{width:30px;height:30px;font-size:13px;}
+  .seg{display:flex;background:var(--purple-soft);border-radius:11px;padding:3px;gap:3px;}
+  .seg-btn{flex:1;border:none;background:transparent;color:var(--purple);font-weight:600;font-size:13px;padding:9px;border-radius:9px;cursor:pointer;font-family:inherit;}
+  .seg-btn.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(124,58,237,.15);}
+  .chip{align-self:flex-start;border:1.5px solid var(--border);background:#fff;color:var(--slate);font-size:12.5px;font-weight:600;padding:8px 13px;border-radius:20px;cursor:pointer;font-family:inherit;}
+  .chip.active{background:var(--teal);color:#fff;border-color:var(--teal);}
   .chk-secname{flex:1;font-weight:700;color:var(--purple);background:transparent;border:1.5px solid transparent;padding:8px 10px;border-radius:9px;font-size:15px;}
   .chk-secname:focus{background:#fff;border-color:var(--purple);outline:none;}
   .chk-cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:3px 10px;flex-shrink:0;}
@@ -120,10 +134,10 @@
 
 <div class="tabs">
   <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="checklist">✅ Checklist</button>
+  <button class="tab-btn" data-tab="expenses">💸 Expenses</button>
   <button class="tab-btn" data-tab="relatives">👨‍👩‍👧 Relatives</button>
   <button class="tab-btn" data-tab="friends">👫 Friends</button>
-  <button class="tab-btn" data-tab="expenses">💸 Expenses</button>
-  <button class="tab-btn" data-tab="checklist">✅ Checklist</button>
   <button class="tab-btn" data-tab="howto">⚙️ Setup & Help</button>
 </div>
 
@@ -236,7 +250,14 @@
     <div class="bar"><div class="fill" id="chk-progress-fill" style="width:0%"></div></div>
   </div>
   <div class="info-pill" style="background:var(--teal-soft);border-color:var(--teal);color:#0F766E">💡 Tap ⬜ to tick off a task. You can rename a section, add tasks, or add whole new sections to match your own plan.</div>
-  <div class="controls"><div class="search-wrap"><span class="si">🔍</span><input id="chk-search" class="ctrl" placeholder="Search tasks…"/></div></div>
+  <div class="controls">
+    <div class="seg">
+      <button id="chk-mode-sec" class="seg-btn active">📂 By Section</button>
+      <button id="chk-mode-left" class="seg-btn">📋 What's left</button>
+    </div>
+    <div class="search-wrap"><span class="si">🔍</span><input id="chk-search" class="ctrl" placeholder="Search tasks…"/></div>
+    <button id="chk-hidedone" class="chip">⬜ Hide completed</button>
+  </div>
   <div id="list-checklist"></div>
 </div>
 
@@ -519,6 +540,8 @@ function expCard(rec,idx){
 // ─── SEARCH / FILTER / COLLAPSE STATE ───
 const relFilter={search:'',type:'All',role:'All',rg:'All'};
 const chkFilter={search:''};
+let chkMode='sections', chkHideDone=false;
+const expanded={};
 const friFilter={search:'',type:'All',role:'All',rg:'All',group:'All'};
 const collapsed={};
 
@@ -597,24 +620,21 @@ function renderExpenses(){
   const e=document.getElementById('list-expenses');e.innerHTML='';
   DATA.expenses.forEach((r,i)=>e.appendChild(expCard(r,i)));
 }
-function chkItemCard(sec,it,ii){
+function chkItemCard(sec,it,ii,secLabel){
   const div=document.createElement('div');
-  div.className='edit-card chk-item'+(it.done?' chk-done':'');
+  div.className='chk-row'+(it.done?' chk-done':'');
   div.innerHTML=
-    '<div class="row-top">'+
-      '<button class="chk-tick" data-toggle="done">'+(it.done?'✅':'⬜')+'</button>'+
-      '<input class="inp inp-name" data-k="task" value="'+(it.task||'').replace(/"/g,'&quot;')+'" placeholder="Task…"/>'+
-      '<button class="del-btn" data-del="1">🗑</button>'+
-    '</div>'+
-    '<div class="field-grid">'+
-      '<div class="field"><label>Responsible</label><input class="inp" data-k="who" value="'+(it.who||'').replace(/"/g,'&quot;')+'" placeholder="Who?"/></div>'+
-      '<div class="field"><label>Due date</label><input class="inp" type="date" data-k="due" value="'+(it.due||'')+'"/></div>'+
-    '</div>';
+    '<button class="chk-tick" data-toggle="done">'+(it.done?'✅':'⬜')+'</button>'+
+    '<input class="chk-task" data-k="task" value="'+(it.task||'').replace(/"/g,'&quot;')+'" placeholder="Task…"/>'+
+    '<input class="chk-who" data-k="who" value="'+(it.who||'').replace(/"/g,'&quot;')+'" placeholder="Who?"/>'+
+    '<button class="del-btn" data-del="1">🗑</button>'+
+    (secLabel?'<div class="chk-sectag">📂 '+secLabel.replace(/</g,'&lt;')+'</div>':'');
   div.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{it[el.dataset.k]=el.value;save();}));
   div.querySelector('[data-del]').addEventListener('click',()=>{sec.items.splice(ii,1);save();renderChecklist();});
   div.querySelector('[data-toggle]').addEventListener('click',()=>{it.done=!it.done;save();renderChecklist();});
   return div;
 }
+function chkMatch(it,q){return (((it.task||'')+' '+(it.who||'')).toLowerCase().includes(q));}
 function renderChecklist(){
   const cont=document.getElementById('list-checklist');
   if(!cont)return;
@@ -622,45 +642,60 @@ function renderChecklist(){
   const q=(chkFilter.search||'').toLowerCase();
   const active=!!q;
   let total=0,done=0;
-  DATA.checklist.forEach((sec,si)=>{
-    const items=sec.items||(sec.items=[]);
-    const sd=items.filter(x=>x.done).length;
-    total+=items.length;done+=sd;
-    const fitems=items.map((it,ii)=>({it,ii})).filter(x=>!active||(((x.it.task||'')+' '+(x.it.who||'')).toLowerCase().includes(q)));
-    if(active&&fitems.length===0)return;
-    const key='chk:'+si;
-    const isColl=collapsed[key]&&!active;
-    const hd=document.createElement('div');
-    hd.className='chk-sec'+(isColl?' collapsed':'');
-    hd.innerHTML='<span class="chev" data-collapse="1">▾</span>'+
-                 '<input class="inp chk-secname" data-k="name" value="'+(sec.name||'').replace(/"/g,'&quot;')+'" placeholder="Section name"/>'+
-                 '<span class="chk-cnt">'+sd+'/'+items.length+'</span>'+
-                 '<button class="del-btn" data-delsec="1">🗑</button>';
-    hd.querySelector('[data-collapse]').addEventListener('click',()=>{collapsed[key]=!collapsed[key];renderChecklist();});
-    hd.querySelector('[data-k]').addEventListener('input',e=>{sec.name=e.target.value;save();});
-    hd.querySelector('[data-delsec]').addEventListener('click',()=>{
-      if(confirm('Delete this whole section and its tasks?')){DATA.checklist.splice(si,1);save();renderChecklist();}
+  DATA.checklist.forEach(sec=>{const items=sec.items||(sec.items=[]);total+=items.length;done+=items.filter(x=>x.done).length;});
+
+  if(chkMode==='left'){
+    // Flat list of everything still to do, across all sections
+    let n=0;
+    DATA.checklist.forEach(sec=>{
+      (sec.items||[]).map((it,ii)=>({it,ii})).filter(x=>!x.it.done&&(!active||chkMatch(x.it,q)))
+        .forEach(x=>{cont.appendChild(chkItemCard(sec,x.it,x.ii,sec.name));n++;});
     });
-    cont.appendChild(hd);
-    if(isColl)return;
-    fitems.forEach(x=>cont.appendChild(chkItemCard(sec,x.it,x.ii)));
+    if(n===0)cont.innerHTML='<div class="empty-msg">🎉 Nothing left — every task is done!</div>';
+  } else {
+    // Grouped by section, collapsed by default, completed sink to bottom
+    DATA.checklist.forEach((sec,si)=>{
+      const items=sec.items||(sec.items=[]);
+      const sd=items.filter(x=>x.done).length;
+      let fitems=items.map((it,ii)=>({it,ii}))
+        .filter(x=>(!active||chkMatch(x.it,q)) && (!chkHideDone||!x.it.done));
+      // not-done first, completed at the bottom
+      fitems.sort((a,b)=>(a.it.done?1:0)-(b.it.done?1:0));
+      if(active&&fitems.length===0)return;
+      const key='chk:'+si;
+      const isColl=!expanded[key]&&!active;   // collapsed by default
+      const hd=document.createElement('div');
+      hd.className='chk-sec'+(isColl?' collapsed':'');
+      hd.innerHTML='<span class="chev" data-collapse="1">▾</span>'+
+                   '<input class="inp chk-secname" data-k="name" value="'+(sec.name||'').replace(/"/g,'&quot;')+'" placeholder="Section name"/>'+
+                   '<span class="chk-cnt">'+sd+'/'+items.length+'</span>'+
+                   '<button class="del-btn" data-delsec="1">🗑</button>';
+      hd.querySelector('[data-collapse]').addEventListener('click',()=>{expanded[key]=!expanded[key];renderChecklist();});
+      hd.querySelector('[data-k]').addEventListener('input',e=>{sec.name=e.target.value;save();});
+      hd.querySelector('[data-delsec]').addEventListener('click',()=>{
+        if(confirm('Delete this whole section and its tasks?')){DATA.checklist.splice(si,1);save();renderChecklist();}
+      });
+      cont.appendChild(hd);
+      if(isColl)return;
+      fitems.forEach(x=>cont.appendChild(chkItemCard(sec,x.it,x.ii)));
+      if(!active){
+        const add=document.createElement('button');
+        add.className='add-btn';
+        add.style.cssText='border-color:var(--teal);background:var(--teal-soft);color:var(--teal);margin:4px 0 18px;padding:10px;';
+        add.textContent='＋ Add task';
+        add.addEventListener('click',()=>{items.push({task:'',who:'',done:false});expanded[key]=true;save();renderChecklist();});
+        cont.appendChild(add);
+      }
+    });
     if(!active){
-      const add=document.createElement('button');
-      add.className='add-btn';
-      add.style.cssText='border-color:var(--teal);background:var(--teal-soft);color:var(--teal);margin-bottom:20px;';
-      add.textContent='＋ Add task';
-      add.addEventListener('click',()=>{items.push({task:'',who:'',due:'',done:false});save();renderChecklist();});
-      cont.appendChild(add);
+      const addsec=document.createElement('button');
+      addsec.className='add-btn';
+      addsec.textContent='＋ Add new section';
+      addsec.addEventListener('click',()=>{DATA.checklist.push({name:'New Section',items:[]});expanded['chk:'+(DATA.checklist.length-1)]=true;save();renderChecklist();});
+      cont.appendChild(addsec);
+    }else if(cont.children.length===0){
+      cont.innerHTML='<div class="empty-msg">No matching tasks</div>';
     }
-  });
-  if(!active){
-    const addsec=document.createElement('button');
-    addsec.className='add-btn';
-    addsec.textContent='＋ Add new section';
-    addsec.addEventListener('click',()=>{DATA.checklist.push({name:'New Section',items:[]});save();renderChecklist();});
-    cont.appendChild(addsec);
-  }else if(cont.children.length===0){
-    cont.innerHTML='<div class="empty-msg">No matching tasks</div>';
   }
   const pct=total?Math.round(done/total*100):0;
   const pf=document.getElementById('chk-progress-fill');if(pf)pf.style.width=pct+'%';
@@ -768,9 +803,19 @@ bindCtrl('fri-group',friFilter,'group',renderFriends);
 bindCtrl('fri-type',friFilter,'type',renderFriends);
 bindCtrl('fri-rg',friFilter,'rg',renderFriends);
 bindCtrl('chk-search',chkFilter,'search',renderChecklist);
-// Fix double-tap: keep focus so action buttons fire on the first tap even when a field is focused
+(function(){
+  const ms=document.getElementById('chk-mode-sec'), ml=document.getElementById('chk-mode-left'), hd=document.getElementById('chk-hidedone');
+  if(ms&&ml){
+    ms.addEventListener('click',()=>{chkMode='sections';ms.classList.add('active');ml.classList.remove('active');if(hd)hd.style.display='';renderChecklist();});
+    ml.addEventListener('click',()=>{chkMode='left';ml.classList.add('active');ms.classList.remove('active');if(hd)hd.style.display='none';renderChecklist();});
+  }
+  if(hd)hd.addEventListener('click',()=>{chkHideDone=!chkHideDone;hd.classList.toggle('active',chkHideDone);hd.textContent=(chkHideDone?'✅':'⬜')+' Hide completed';renderChecklist();});
+})();
+// Fix double-tap everywhere: stop buttons stealing focus so the first tap registers as a click
 document.addEventListener('mousedown',e=>{
-  if(e.target.closest&&e.target.closest('.add-btn,.del-btn,.toggle,.chk-tick,.grp-header,.chev')) e.preventDefault();
+  if(!e.target.closest)return;
+  if(e.target.closest('.tab-btn'))return;
+  if(e.target.closest('button,.grp-header,.chev')) e.preventDefault();
 });
 ['maternal','paternal'].forEach(side=>{
   const h=document.getElementById('hdr-'+side);
