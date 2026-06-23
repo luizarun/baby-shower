@@ -109,6 +109,17 @@
   .seg-btn.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(124,58,237,.15);}
   .chip{align-self:flex-start;border:1.5px solid var(--border);background:#fff;color:var(--slate);font-size:12.5px;font-weight:600;padding:8px 13px;border-radius:20px;cursor:pointer;font-family:inherit;}
   .chip.active{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .exp-row{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:11px;padding:8px 10px;margin-bottom:8px;}
+  .exp-row.exp-paid{border-left-color:var(--green);}
+  .exp-line1{display:flex;align-items:center;gap:6px;}
+  .exp-desc{flex:1;min-width:0;border:1.5px solid transparent;background:transparent;border-radius:8px;padding:7px 8px;font-size:14px;font-family:inherit;color:var(--ink);}
+  .exp-desc:focus{outline:none;border-color:var(--purple);background:#fff;}
+  .exp-cur{color:var(--slate);font-size:13px;flex-shrink:0;}
+  .exp-amt{width:80px;flex-shrink:0;border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:7px 6px;font-size:14px;font-weight:700;font-family:inherit;color:var(--red);text-align:right;}
+  .exp-amt:focus{outline:none;border-color:var(--purple);}
+  .exp-cat{width:100%;margin-top:6px;border:1.5px solid var(--border);background:#FBFAFE;border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit;color:var(--slate);}
+  .exp-cat:focus{outline:none;border-color:var(--purple);background:#fff;}
+  .exp-row .del-btn{width:30px;height:30px;font-size:13px;flex-shrink:0;}
   .chk-secname{flex:1;font-weight:700;color:var(--purple);background:transparent;border:1.5px solid transparent;padding:8px 10px;border-radius:9px;font-size:15px;}
   .chk-secname:focus{background:#fff;border-color:var(--purple);outline:none;}
   .chk-cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:3px 10px;flex-shrink:0;}
@@ -511,21 +522,16 @@ function guestCard(rec,listKey,idx,side){
 }
 function expCard(rec,idx){
   const div=document.createElement('div');
-  div.className='edit-card';div.style.borderLeft='5px solid var(--red)';
-  div.innerHTML=`
-    <div class="row-top">
-      <span class="row-num" style="background:var(--red-soft);color:var(--red)">${idx+1}</span>
-      <input class="inp inp-name" data-k="desc" value="${(rec.desc||'').replace(/"/g,'&quot;')}" placeholder="What did you spend on?"/>
-      <button class="del-btn" data-del="1">🗑</button>
-    </div>
-    <div class="field-grid">
-      <div class="field"><label>Category</label>
-        <input class="inp" list="cat-suggest" data-k="cat" value="${(rec.cat||'').replace(/"/g,'&quot;')}" placeholder="Type a category"/></div>
-      <div class="field"><label>Amount (₹)</label>
-        <input class="inp" type="number" inputmode="numeric" data-k="amount" value="${rec.amount||''}" placeholder="0"/></div>
-      <div class="field" style="grid-column:1/-1"><label>Paid?</label>
-        <button class="toggle ${rec.paid?'on-paid':''}" data-toggle="paid">${rec.paid?'✅ Paid':'⏳ Not paid yet'}</button></div>
-    </div>`;
+  div.className='exp-row'+(rec.paid?' exp-paid':'');
+  div.innerHTML=
+    '<div class="exp-line1">'+
+      '<button class="chk-tick" data-toggle="paid">'+(rec.paid?'✅':'⬜')+'</button>'+
+      '<input class="exp-desc" data-k="desc" value="'+(rec.desc||'').replace(/"/g,'&quot;')+'" placeholder="What did you spend on?"/>'+
+      '<span class="exp-cur">₹</span>'+
+      '<input class="exp-amt" type="number" inputmode="numeric" data-k="amount" value="'+(rec.amount||'')+'" placeholder="0"/>'+
+      '<button class="del-btn" data-del="1">🗑</button>'+
+    '</div>'+
+    '<input class="exp-cat" list="cat-suggest" data-k="cat" value="'+(rec.cat||'').replace(/"/g,'&quot;')+'" placeholder="Category…"/>';
   div.querySelectorAll('[data-k]').forEach(el=>{
     el.addEventListener('input',()=>{
       let v=el.value;
@@ -533,8 +539,8 @@ function expCard(rec,idx){
       rec[el.dataset.k]=v;save();updateDash();
     });
   });
-  div.querySelector('[data-del]').addEventListener('click',()=>{DATA.expenses.splice(idx,1);save();renderAll();updateDash();});
-  div.querySelector('[data-toggle]').addEventListener('click',()=>{rec.paid=!rec.paid;save();renderAll();updateDash();});
+  div.querySelector('[data-del]').addEventListener('click',()=>{DATA.expenses.splice(idx,1);save();renderExpenses();updateDash();});
+  div.querySelector('[data-toggle]').addEventListener('click',()=>{rec.paid=!rec.paid;save();renderExpenses();updateDash();});
   return div;
 }
 // ─── SEARCH / FILTER / COLLAPSE STATE ───
