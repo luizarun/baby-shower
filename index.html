@@ -120,6 +120,25 @@
   .exp-cat{width:100%;margin-top:6px;border:1.5px solid var(--border);background:#FBFAFE;border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit;color:var(--slate);}
   .exp-cat:focus{outline:none;border-color:var(--purple);background:#fff;}
   .exp-row .del-btn{width:30px;height:30px;font-size:13px;flex-shrink:0;}
+  .g-row{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--slate);border-radius:11px;padding:8px 10px;margin-bottom:8px;}
+  .g-row.maternal{border-left-color:var(--rose);}
+  .g-row.paternal{border-left-color:var(--purple);}
+  .g-row.g-head{background:linear-gradient(135deg,#fff,var(--purple-soft));}
+  .g-line1{display:flex;align-items:center;gap:6px;}
+  .g-name{flex:1;min-width:0;border:1.5px solid transparent;background:transparent;border-radius:8px;padding:7px 8px;font-size:14px;font-weight:600;font-family:inherit;color:var(--ink);}
+  .g-name:focus{outline:none;border-color:var(--purple);background:#fff;}
+  .g-headbtn{flex-shrink:0;width:34px;height:34px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:15px;cursor:pointer;color:var(--slate);}
+  .g-headbtn.on{background:var(--purple);border-color:var(--purple);}
+  .g-rg{flex-shrink:0;height:34px;padding:0 9px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:13px;cursor:pointer;}
+  .g-rg.on{background:var(--green-soft);border-color:var(--green);}
+  .g-line2{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;}
+  .g-mini{border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:6px 7px;font-size:12.5px;font-family:inherit;color:var(--ink);}
+  .g-mini:focus{outline:none;border-color:var(--purple);}
+  .g-num{width:58px;text-align:right;}
+  .g-ppl,.g-amt{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--slate);}
+  .g-notes{width:100%;margin-top:7px;border:1.5px solid var(--border);background:#FBFAFE;border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit;color:var(--slate);}
+  .g-notes:focus{outline:none;border-color:var(--purple);background:#fff;}
+  .g-row .del-btn{width:30px;height:30px;font-size:13px;flex-shrink:0;}
   .chk-secname{flex:1;font-weight:700;color:var(--purple);background:transparent;border:1.5px solid transparent;padding:8px 10px;border-radius:9px;font-size:15px;}
   .chk-secname:focus{background:#fff;border-color:var(--purple);outline:none;}
   .chk-cnt{font-size:12px;font-weight:600;color:var(--slate);background:#fff;border-radius:20px;padding:3px 10px;flex-shrink:0;}
@@ -476,37 +495,30 @@ const catIcon=c=>CAT_ICON[c]?CAT_ICON[c]+' ':'';
 
 function guestCard(rec,listKey,idx,side){
   const div=document.createElement('div');
-  div.className='edit-card '+(rec.head?'head-card ':'')+(side||'');
-  const groupField=listKey==='friends'?`
-    <div class="field"><label>Group</label>
-      <select class="inp" data-k="group">${GROUPS.map(g=>`<option ${g===rec.group?'selected':''}>${g}</option>`).join('')}</select></div>`:'';
-  div.innerHTML=`
-    <div class="row-top">
-      <span class="row-num">${idx+1}</span>
-      <input class="inp inp-name" data-k="name" value="${(rec.name||'').replace(/"/g,'&quot;')}" placeholder="Full name"/>
-      <button class="del-btn" data-del="1">🗑</button>
-    </div>
-    <div class="field-grid">
-      ${groupField}
-      <div class="field"><label>People in household</label>
-        <input class="inp" type="number" inputmode="numeric" data-k="people" value="${rec.people||''}" placeholder="0"/></div>
-      <div class="field"><label>Gift or Money?</label>
-        <select class="inp" data-k="type">${TYPES.map(t=>`<option value="${t}" ${t===rec.type?'selected':''}>${t||'—'}</option>`).join('')}</select></div>
-      <div class="field"><label>Amount received (₹)</label>
-        <input class="inp" type="number" inputmode="numeric" data-k="amount" value="${rec.amount||''}" placeholder="0" ${rec.type==='Money'?'':'disabled style=opacity:.45'}/></div>
-      <div class="field"><label>Household head?</label>
-        <button class="toggle ${rec.head?'on-head':''}" data-toggle="head">${rec.head?'✅ Head':'Mark as Head'}</button></div>
-      <div class="field"><label>Return gift given?</label>
-        ${rec.head?`<button class="toggle ${rec.rg?'on-gift':''}" data-toggle="rg">${rec.rg?'✅ Given':'⏳ Pending'}</button>`:`<div style="font-size:11px;color:#cbd5e1;padding:9px;text-align:center">Only for head</div>`}</div>
-    </div>
-    <div class="field" style="margin-top:8px"><label>Notes</label>
-      <input class="inp" data-k="notes" value="${(rec.notes||'').replace(/"/g,'&quot;')}" placeholder="e.g. gift description"/></div>`;
+  div.className='g-row '+(rec.head?'g-head ':'')+(side||'');
+  const groupSel=listKey==='friends'?
+    '<select class="g-mini" data-k="group">'+GROUPS.map(g=>'<option '+(g===rec.group?'selected':'')+'>'+g+'</option>').join('')+'</select>':'';
+  const amtDis=rec.type==='Money'?'':'disabled';
+  div.innerHTML=
+    '<div class="g-line1">'+
+      '<button class="g-headbtn'+(rec.head?' on':'')+'" data-toggle="head" title="Household head">'+(rec.head?'🎩':'○')+'</button>'+
+      '<input class="g-name" data-k="name" value="'+(rec.name||'').replace(/"/g,'&quot;')+'" placeholder="Full name"/>'+
+      (rec.head?'<button class="g-rg'+(rec.rg?' on':'')+'" data-toggle="rg" title="Return gift">'+(rec.rg?'🎁✅':'🎁')+'</button>':'')+
+      '<button class="del-btn" data-del="1">🗑</button>'+
+    '</div>'+
+    '<div class="g-line2">'+
+      groupSel+
+      '<span class="g-ppl">👥<input class="g-mini g-num" type="number" inputmode="numeric" data-k="people" value="'+(rec.people||'')+'" placeholder="0"/></span>'+
+      '<select class="g-mini" data-k="type">'+TYPES.map(t=>'<option value="'+t+'" '+(t===rec.type?'selected':'')+'>'+(t||'—')+'</option>').join('')+'</select>'+
+      '<span class="g-amt">₹<input class="g-mini g-num" type="number" inputmode="numeric" data-k="amount" value="'+(rec.amount||'')+'" placeholder="0" '+amtDis+'/></span>'+
+    '</div>'+
+    '<input class="g-notes" data-k="notes" value="'+(rec.notes||'').replace(/"/g,'&quot;')+'" placeholder="Notes (e.g. gift description)"/>';
   div.querySelectorAll('[data-k]').forEach(el=>{
     el.addEventListener('input',()=>{
       let v=el.value;
       if(el.dataset.k==='people'||el.dataset.k==='amount')v=Number(v)||0;
       rec[el.dataset.k]=v;
-      if(el.dataset.k==='type'){renderAll();}
+      if(el.dataset.k==='type'){listKey==='friends'?renderFriends():renderRelatives();}
       save();updateDash();
     });
   });
@@ -578,11 +590,13 @@ function renderSide(side){
   const cont=document.getElementById('list-'+side);
   const hdr=document.getElementById('hdr-'+side);
   const cnt=document.getElementById('cnt-'+side);
+  const addbtn=document.querySelector('[data-add="'+side+'"]');
   const items=DATA[side].map((r,i)=>({r,i})).filter(x=>matchFilters(x.r,relFilter));
   if(cnt)cnt.textContent=items.length;
-  const isColl=collapsed[side]&&!relActive();
+  const isColl=!expanded[side]&&!relActive();   // collapsed by default
   if(hdr)hdr.classList.toggle('collapsed',isColl);
   cont.style.display=isColl?'none':'';
+  if(addbtn)addbtn.style.display=isColl?'none':'';
   cont.innerHTML='';
   if(isColl)return;
   if(items.length===0){cont.innerHTML='<div class="empty-msg">No matches</div>';return;}
@@ -603,11 +617,11 @@ function renderFriends(){
     if(items.length===0&&active)return;
     any=true;
     const key='fri:'+g;
-    const isColl=collapsed[key]&&!active;
+    const isColl=!expanded[key]&&!active;   // collapsed by default
     const hdr=document.createElement('div');
     hdr.className='grp-header'+(isColl?' collapsed':'');
     hdr.innerHTML='<span>👯 '+g+' <span class="cnt">'+items.length+'</span></span><span class="chev">▾</span>';
-    hdr.addEventListener('click',()=>{collapsed[key]=!collapsed[key];renderFriends();});
+    hdr.addEventListener('click',()=>{expanded[key]=!expanded[key];renderFriends();});
     cont.appendChild(hdr);
     if(!isColl){
       if(items.length===0)cont.insertAdjacentHTML('beforeend','<div class="empty-msg">No matches</div>');
@@ -764,8 +778,8 @@ document.querySelectorAll('[data-add]').forEach(btn=>{
   btn.addEventListener('click',()=>{
     const k=btn.dataset.add;
     if(k==='expenses')DATA.expenses.push({cat:"Miscellaneous",desc:"",amount:0,paid:false});
-    else if(k==='friends')DATA.friends.push({name:"",group:"Other",people:1,head:true,type:"",amount:0,rg:false,notes:""});
-    else DATA[k].push({name:"",people:1,head:true,type:"",amount:0,rg:false,notes:""});
+    else if(k==='friends'){DATA.friends.push({name:"",group:"Other",people:1,head:true,type:"",amount:0,rg:false,notes:""});expanded['fri:Other']=true;}
+    else {DATA[k].push({name:"",people:1,head:true,type:"",amount:0,rg:false,notes:""});expanded[k]=true;}
     save();renderAll();updateDash();window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
   });
 });
@@ -823,9 +837,37 @@ document.addEventListener('mousedown',e=>{
   if(e.target.closest('.tab-btn'))return;
   if(e.target.closest('button,.grp-header,.chev')) e.preventDefault();
 });
+// Swipe left/right to move between tabs
+(function(){
+  let x0=null,y0=null,t0=0,skip=false;
+  document.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){skip=true;return;}
+    skip=false;
+    const t=e.target;
+    if(t.closest&&t.closest('input,textarea,select,.tabs')){skip=true;return;}
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(skip||x0===null){x0=null;return;}
+    const t=e.changedTouches[0];
+    const dx=t.clientX-x0, dy=t.clientY-y0, dt=Date.now()-t0;
+    x0=null;
+    if(dt>700)return;                          // too slow to be a swipe
+    if(Math.abs(dx)<70)return;                 // not far enough
+    if(Math.abs(dx)<Math.abs(dy)*1.8)return;   // not clearly horizontal
+    const tabs=Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+    let cur=-1; tabs.forEach((b,i)=>{if(b.classList.contains('active'))cur=i;});
+    if(cur<0)return;
+    const ni=dx<0?cur+1:cur-1;                 // swipe left → next tab
+    if(ni<0||ni>=tabs.length)return;
+    tabs[ni].click();
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(tabs[ni].scrollIntoView)tabs[ni].scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+  },{passive:true});
+})();
 ['maternal','paternal'].forEach(side=>{
   const h=document.getElementById('hdr-'+side);
-  if(h)h.addEventListener('click',()=>{collapsed[side]=!collapsed[side];renderSide(side);});
+  if(h)h.addEventListener('click',()=>{expanded[side]=!expanded[side];renderSide(side);});
 });
 
 // ─── INIT ───
