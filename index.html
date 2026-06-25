@@ -28,6 +28,10 @@
   .tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
   .page{display:none;padding:18px 14px;max-width:900px;margin:0 auto;}
   .page.active{display:block;}
+  @keyframes slideR{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes slideL{from{opacity:0;transform:translateX(-26px);}to{opacity:1;transform:translateX(0);}}
+  .page.anim-r{animation:slideR .26s cubic-bezier(.22,.61,.36,1);}
+  .page.anim-l{animation:slideL .26s cubic-bezier(.22,.61,.36,1);}
   .setup-banner{background:linear-gradient(135deg,var(--gold-soft),#FFE9C2);border:2px solid var(--gold);border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#78350F;line-height:1.55;}
   .setup-banner b{color:#92400E;}
   .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:16px;}
@@ -265,8 +269,6 @@
   <div class="info-pill" style="background:var(--red-soft);border-color:var(--red);color:#991B1B">💡 The <strong>cost of buying</strong> return gift bags goes here. <strong>Who received</strong> their gift is tracked in the Relatives & Friends tabs.</div>
   <div class="section-title">💸 Expenses</div>
   <div id="list-expenses"></div>
-  <datalist id="cat-suggest"></datalist>
-  <button class="add-btn" data-add="expenses" style="border-color:var(--red);background:var(--red-soft);color:var(--red)">＋ Add Expense</button>
   <div class="chart-card" style="margin-top:6px"><div class="chart-title">📊 Spend by Category</div><div class="chart-wrap" style="height:250px"><canvas id="cExpBar"></canvas></div></div>
 </div>
 
@@ -378,6 +380,7 @@ const SAMPLE = {
     {cat:"Miscellaneous",desc:"Invitation card printing",amount:600,paid:true},
     {cat:"Miscellaneous",desc:"Photography & video",amount:3000,paid:false},
   ],
+  expenseCats:["Food & Catering","Return Gifts","Decoration","Venue","Miscellaneous"],
   checklist:[
     {name:"🏛️ Venue & Setup",items:[
       {task:"Book the hall",who:"Me",due:"",done:true},
@@ -417,6 +420,11 @@ let isEditing=false, pendingRemote=false, applyingRemote=false;
 function normalize(d){
   d=d||{};
   ['maternal','paternal','friends','expenses','checklist'].forEach(k=>{ if(!Array.isArray(d[k]))d[k]=[]; });
+  if(!Array.isArray(d.expenseCats)){
+    const set=[];
+    d.expenses.forEach(x=>{const c=(x.cat||'').trim();if(c&&set.indexOf(c)<0)set.push(c);});
+    d.expenseCats=set.length?set:["Food & Catering","Return Gifts","Decoration","Venue","Miscellaneous"];
+  }
   return d;
 }
 function deepSample(){return JSON.parse(JSON.stringify(SAMPLE));}
@@ -472,9 +480,10 @@ function startCloud(){
 }
 
 // ─── EDIT FOCUS GUARD (don't yank DOM while typing) ───
-document.addEventListener('focusin',e=>{ if(e.target.classList&&e.target.classList.contains('inp'))isEditing=true; });
+function isEditable(t){return t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA');}
+document.addEventListener('focusin',e=>{ if(isEditable(e.target))isEditing=true; });
 document.addEventListener('focusout',e=>{
-  if(e.target.classList&&e.target.classList.contains('inp')){
+  if(isEditable(e.target)){
     setTimeout(()=>{
       isEditing=false;
       if(pendingRemote && useCloud && cloudRef){
@@ -542,8 +551,7 @@ function expCard(rec,idx){
       '<span class="exp-cur">₹</span>'+
       '<input class="exp-amt" type="number" inputmode="numeric" data-k="amount" value="'+(rec.amount||'')+'" placeholder="0"/>'+
       '<button class="del-btn" data-del="1">🗑</button>'+
-    '</div>'+
-    '<input class="exp-cat" list="cat-suggest" data-k="cat" value="'+(rec.cat||'').replace(/"/g,'&quot;')+'" placeholder="Category…"/>';
+    '</div>';
   div.querySelectorAll('[data-k]').forEach(el=>{
     el.addEventListener('input',()=>{
       let v=el.value;
@@ -631,14 +639,55 @@ function renderFriends(){
   if(!any)cont.innerHTML='<div class="empty-msg">No matches</div>';
 }
 function renderExpenses(){
-  const dl=document.getElementById('cat-suggest');
-  if(dl){
-    const used=DATA.expenses.map(r=>(r.cat||'').trim()).filter(Boolean);
-    const all=Array.from(new Set([...DEFAULT_CATS,...used]));
-    dl.innerHTML=all.map(c=>'<option value="'+c.replace(/"/g,'&quot;')+'">').join('');
-  }
-  const e=document.getElementById('list-expenses');e.innerHTML='';
-  DATA.expenses.forEach((r,i)=>e.appendChild(expCard(r,i)));
+  const cont=document.getElementById('list-expenses');if(!cont)return;
+  cont.innerHTML='';
+  const order=[];
+  (DATA.expenseCats||[]).forEach(c=>{if(order.indexOf(c)<0)order.push(c);});
+  DATA.expenses.forEach(x=>{const c=(x.cat||'Uncategorised');if(order.indexOf(c)<0)order.push(c);});
+  order.forEach(cat=>{
+    const items=DATA.expenses.map((r,i)=>({r,i})).filter(x=>(x.r.cat||'Uncategorised')===cat);
+    const tot=items.reduce((s,x)=>s+(+x.r.amount||0),0);
+    const key='exp:'+cat;
+    const isColl=!expanded[key];
+    let cur=cat;
+    const hd=document.createElement('div');
+    hd.className='chk-sec'+(isColl?' collapsed':'');
+    hd.innerHTML='<span class="chev" data-collapse="1">▾</span>'+
+                 '<input class="inp chk-secname" data-k="catname" value="'+cat.replace(/"/g,'&quot;')+'" placeholder="Category name"/>'+
+                 '<span class="chk-cnt">₹'+tot.toLocaleString('en-IN')+'</span>'+
+                 '<button class="del-btn" data-delsec="1">🗑</button>';
+    hd.querySelector('[data-collapse]').addEventListener('click',()=>{expanded[key]=!expanded[key];renderExpenses();});
+    hd.querySelector('[data-k]').addEventListener('input',e=>{
+      const nw=e.target.value;
+      DATA.expenses.forEach(x=>{if((x.cat||'Uncategorised')===cur)x.cat=nw;});
+      const ix=DATA.expenseCats.indexOf(cur);if(ix>=0)DATA.expenseCats[ix]=nw;else DATA.expenseCats.push(nw);
+      cur=nw;save();updateDash();
+    });
+    hd.querySelector('[data-delsec]').addEventListener('click',()=>{
+      if(confirm('Delete the "'+cur+'" category and all its expenses?')){
+        DATA.expenses=DATA.expenses.filter(x=>(x.cat||'Uncategorised')!==cur);
+        const ix=DATA.expenseCats.indexOf(cur);if(ix>=0)DATA.expenseCats.splice(ix,1);
+        save();renderExpenses();updateDash();
+      }
+    });
+    cont.appendChild(hd);
+    if(isColl)return;
+    items.forEach(x=>cont.appendChild(expCard(x.r,x.i)));
+    const add=document.createElement('button');
+    add.className='add-btn';
+    add.style.cssText='border-color:var(--red);background:var(--red-soft);color:var(--red);margin:4px 0 16px;padding:10px;';
+    add.textContent='＋ Add expense';
+    add.addEventListener('click',()=>{DATA.expenses.push({cat:cur,desc:'',amount:0,paid:false});expanded[key]=true;save();renderExpenses();updateDash();});
+    cont.appendChild(add);
+  });
+  const addc=document.createElement('button');
+  addc.className='add-btn';
+  addc.textContent='＋ Add new category';
+  addc.addEventListener('click',()=>{
+    let n='New Category',i=2;while(DATA.expenseCats.indexOf(n)>=0){n='New Category '+(i++);}
+    DATA.expenseCats.push(n);expanded['exp:'+n]=true;save();renderExpenses();
+  });
+  cont.appendChild(addc);
 }
 function chkItemCard(sec,it,ii,secLabel){
   const div=document.createElement('div');
@@ -768,9 +817,17 @@ function drawCharts(s){
 }
 document.querySelectorAll('.tab-btn').forEach(b=>{
   b.addEventListener('click',()=>{
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    const tabs=Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+    const oldI=tabs.findIndex(x=>x.classList.contains('active'));
+    const newI=tabs.indexOf(b);
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active','anim-l','anim-r'));
     document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
-    document.getElementById('page-'+b.dataset.tab).classList.add('active');
+    const pg=document.getElementById('page-'+b.dataset.tab);
+    pg.classList.add('active');
+    if(oldI>-1&&newI>-1&&oldI!==newI){
+      pg.classList.add(newI>oldI?'anim-r':'anim-l');
+      setTimeout(()=>pg.classList.remove('anim-r','anim-l'),300);
+    }
     b.classList.add('active');setTimeout(updateDash,50);
   });
 });
@@ -842,6 +899,7 @@ document.addEventListener('mousedown',e=>{
   let x0=null,y0=null,t0=0,skip=false;
   document.addEventListener('touchstart',e=>{
     if(e.touches.length!==1){skip=true;return;}
+    if(window.visualViewport&&window.visualViewport.scale>1.02){skip=true;return;}  // don't switch while zoomed
     skip=false;
     const t=e.target;
     if(t.closest&&t.closest('input,textarea,select,.tabs')){skip=true;return;}
@@ -873,7 +931,7 @@ document.addEventListener('mousedown',e=>{
 // ─── INIT ───
 const cloudOK=startCloud();
 if(cloudOK){
-  DATA={maternal:[],paternal:[],friends:[],expenses:[],checklist:[]};  // wait for Firebase; no sample flash
+  DATA={maternal:[],paternal:[],friends:[],expenses:[],expenseCats:[],checklist:[]};  // wait for Firebase; no sample flash
 }else{
   loadLocal();
 }
